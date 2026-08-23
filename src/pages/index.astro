@@ -1,5 +1,26 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { pb } from '../lib/pocketbase';
+
+type Photo = {
+	id: string;
+	title: string;
+	year?: number;
+	caption?: string;
+	description?: string;
+	image: string;
+	cloudinary_public_id: string;
+	status: string;
+	show_on_home: boolean;
+	featured: boolean;
+};
+
+const result = await pb.collection('photos').getList<Photo>(1, 50, {
+	filter: 'status = "published" && show_on_home = true',
+	sort: '-featured,year',
+});
+
+const photos = result.items;
 ---
 
 <Layout
@@ -19,31 +40,30 @@ import Layout from '../layouts/Layout.astro';
 
 	<main class="home">
 		<section class="photo-stage" aria-label="Fotografía destacada">
-			<div class="photo-container">
-				<img
-					src="/images/photo-01.jpg"
-					alt="Fotografía de archivo"
-				/>
-			</div>
+			{photos.length > 0 ? (
+				<>
+					<div class="photo-container">
+						<img
+							src={photos[0].image}
+							alt={photos[0].title}
+						/>
+					</div>
 
-			<div class="photo-info">
-				<h1>Título de la fotografía</h1>
-				<p class="year">1987</p>
-				<p class="subtitle">
-					Una breve descripción que introduce la historia
-					detrás de esta fotografía.
-				</p>
-			</div>
+					<div class="photo-info">
+						<h1>{photos[0].title}</h1>
 
-			<div class="navigation-controls" aria-hidden="true">
-				<button type="button" aria-label="Fotografía anterior">
-					<span>‹</span>
-				</button>
+						{photos[0].year && (
+							<p class="year">{photos[0].year}</p>
+						)}
 
-				<button type="button" aria-label="Fotografía siguiente">
-					<span>›</span>
-				</button>
-			</div>
+						{photos[0].caption && (
+							<p class="subtitle">{photos[0].caption}</p>
+						)}
+					</div>
+				</>
+			) : (
+				<p>No hay fotografías disponibles.</p>
+			)}
 		</section>
 	</main>
 </Layout>
