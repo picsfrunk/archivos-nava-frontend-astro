@@ -11,16 +11,20 @@ type Photo = {
 	image: string;
 	cloudinary_public_id: string;
 	status: string;
-	show_on_home: boolean;
-	featured: boolean;
 };
 
-const result = await pb.collection('photos').getList<Photo>(1, 50, {
-	filter: 'status = "published" && show_on_home = true',
-	sort: '-featured,year',
-});
+let photos: Photo[] = [];
 
-const photos = result.items;
+try {
+	const result = await pb.collection('photos').getList<Photo>(1, 50, {
+		filter: 'status = "published"',
+		sort: '-created',
+	});
+
+	photos = result.items;
+} catch {
+	photos = [];
+}
 ---
 
 <Layout
