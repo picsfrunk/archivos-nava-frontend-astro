@@ -1,7 +1,5 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-
-const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1:8090';
 ---
 
 <Layout
@@ -48,10 +46,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 	</main>
 </Layout>
 
-<script define:vars={{ pocketbaseUrl }}>
-	import PocketBase from 'pocketbase';
+<script>
+	import { pb } from '../../lib/pocketbase';
 
-	const pb = new PocketBase(pocketbaseUrl);
 	const form = document.querySelector('#login-form');
 	const message = document.querySelector('#login-message');
 
