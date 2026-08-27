@@ -62,20 +62,14 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 		message.dataset.type = type;
 	}
 
-	async function login(identity, password) {
-		try {
-			return await pb.collection('_superusers').authWithPassword(identity, password);
-		} catch (superuserError) {
-			try {
-				return await pb.collection('users').authWithPassword(identity, password);
-			} catch {
-				throw superuserError;
-			}
-		}
+	function isAdminSession() {
+		return pb.authStore.model?.collectionName === 'admins';
 	}
 
-	if (pb.authStore.isValid) {
+	if (pb.authStore.isValid && isAdminSession()) {
 		window.location.href = '/admin';
+	} else if (pb.authStore.token) {
+		pb.authStore.clear();
 	}
 
 	form?.addEventListener('submit', async (event) => {
@@ -101,7 +95,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 		setMessage('');
 
 		try {
-			await login(identity, password);
+			await pb.collection('admins').authWithPassword(identity, password);
 			window.location.href = '/admin';
 		} catch {
 			pb.authStore.clear();

@@ -72,93 +72,6 @@ try {
 	</main>
 </Layout>
 
-<script>
-	const photos = [
-		{
-			src: '/images/photo-01.jpg',
-			alt: 'Fotografía de archivo 1',
-			title: 'Título de la fotografía 1',
-			year: '1987',
-			subtitle: 'Una breve descripción que introduce la historia detrás de esta fotografía.',
-		},
-		{
-			src: '/images/photo-02.jpg',
-			alt: 'Fotografía de archivo 2',
-			title: 'Título de la fotografía 2',
-			year: '1991',
-			subtitle: 'Una breve descripción que introduce la historia detrás de esta fotografía.',
-		},
-		{
-			src: '/images/photo-03.jpg',
-			alt: 'Fotografía de archivo 3',
-			title: 'Título de la fotografía 3',
-			year: '1978',
-			subtitle: 'Una breve descripción que introduce la historia detrás de esta fotografía.',
-		},
-		{
-			src: '/images/photo-04.jpg',
-			alt: 'Fotografía de archivo 4',
-			title: 'Título de la fotografía 4',
-			year: '1985',
-			subtitle: 'Una breve descripción que introduce la historia detrás de esta fotografía.',
-		},
-	];
-
-	const image = document.querySelector<HTMLImageElement>('.photo-container img');
-	const title = document.querySelector<HTMLElement>('.photo-info h1');
-	const year = document.querySelector<HTMLElement>('.photo-info .year');
-	const subtitle = document.querySelector<HTMLElement>('.photo-info .subtitle');
-	const previousButton = document.querySelector<HTMLButtonElement>(
-		'.navigation-controls button:first-child',
-	);
-	const nextButton = document.querySelector<HTMLButtonElement>(
-		'.navigation-controls button:last-child',
-	);
-
-	if (image && title && year && subtitle && previousButton && nextButton) {
-		const shuffledPhotos = [...photos].sort(() => Math.random() - 0.5);
-
-		let currentIndex = 0;
-
-		function showPhoto(index: number) {
-			const photo = shuffledPhotos[index];
-
-			image.src = photo.src;
-			image.alt = photo.alt;
-			title.textContent = photo.title;
-			year.textContent = photo.year;
-			subtitle.textContent = photo.subtitle;
-		}
-
-		function showNext() {
-			currentIndex = (currentIndex + 1) % shuffledPhotos.length;
-			showPhoto(currentIndex);
-		}
-
-		function showPrevious() {
-			currentIndex =
-				(currentIndex - 1 + shuffledPhotos.length) % shuffledPhotos.length;
-
-			showPhoto(currentIndex);
-		}
-
-		previousButton.addEventListener('click', showPrevious);
-		nextButton.addEventListener('click', showNext);
-
-		document.addEventListener('keydown', (event) => {
-			if (event.key === 'ArrowLeft') {
-				showPrevious();
-			}
-
-			if (event.key === 'ArrowRight') {
-				showNext();
-			}
-		});
-
-		showPhoto(currentIndex);
-	}
-</script>
-
 <style>
 	.site-header {
 		position: fixed;
@@ -256,48 +169,6 @@ try {
 		opacity: 0.65;
 	}
 
-	.navigation-controls {
-		position: absolute;
-		inset: 0;
-
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-
-		padding: 0 28px;
-
-		pointer-events: none;
-	}
-
-	.navigation-controls button {
-		display: grid;
-		place-items: center;
-
-		width: 48px;
-		height: 48px;
-
-		color: white;
-		background: transparent;
-
-		font-size: 2rem;
-		cursor: pointer;
-
-		opacity: 0;
-		transition:
-			opacity 180ms ease,
-			transform 180ms ease;
-
-		pointer-events: auto;
-	}
-
-	.navigation-controls button:hover {
-		transform: scale(1.12);
-	}
-
-	.photo-stage:hover .navigation-controls button {
-		opacity: 0.65;
-	}
-
 	@media (max-width: 700px) {
 		.site-header {
 			padding: 22px 20px;
@@ -332,8 +203,5 @@ try {
 			max-width: 90vw;
 		}
 
-		.navigation-controls {
-			padding: 0 8px;
-		}
 	}
 </style>

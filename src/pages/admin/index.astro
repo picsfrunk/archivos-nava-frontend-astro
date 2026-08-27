@@ -89,6 +89,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 	const categorySelect = document.querySelector('#category');
 	const logoutButton = document.querySelector('#logout-button');
 	const message = document.querySelector('#admin-message');
+	const maxImageBytes = 10 * 1024 * 1024;
 
 	let selectedFile = null;
 
@@ -99,13 +100,28 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 		message.dataset.type = type;
 	}
 
-	function requireSession() {
-		if (!pb.authStore.isValid) {
-			window.location.href = '/admin/login';
+	function redirectToLogin() {
+		pb.authStore.clear();
+		window.location.href = '/admin/login';
+	}
+
+	function isAdminSession() {
+		return pb.authStore.model?.collectionName === 'admins';
+	}
+
+	async function requireAdminSession() {
+		if (!pb.authStore.isValid || !isAdminSession()) {
+			redirectToLogin();
 			return false;
 		}
 
-		return true;
+		try {
+			await pb.collection('admins').authRefresh();
+			return true;
+		} catch {
+			redirectToLogin();
+			return false;
+		}
 	}
 
 	function setPreview(file) {
@@ -173,6 +189,20 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 		}
 	}
 
+	function validateSelectedImage(file) {
+		if (!file.type.startsWith('image/')) {
+			setMessage('El archivo seleccionado no parece ser una imagen.', 'error');
+			return false;
+		}
+
+		if (file.size > maxImageBytes) {
+			setMessage('La imagen no puede superar los 10 MB.', 'error');
+			return false;
+		}
+
+		return true;
+	}
+
 	async function createPhoto(status, submitButton) {
 		if (!(form instanceof HTMLFormElement)) return;
 
@@ -181,6 +211,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 
 		if (!selectedFile) {
 			setMessage('Seleccioná una imagen antes de guardar.', 'error');
+			return;
+		}
+
+		if (!validateSelectedImage(selectedFile)) {
 			return;
 		}
 
@@ -219,6 +253,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 
 			const result = await response.json().catch(() => ({}));
 
+			if (response.status === 401 || response.status === 403) {
+				redirectToLogin();
+				return;
+			}
+
 			if (!response.ok || result.success === false) {
 				throw result;
 			}
@@ -243,9 +282,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 		}
 	}
 
-	if (requireSession()) {
-		loadCategories();
-	}
+	requireAdminSession().then((isValid) => {
+		if (isValid) {
+			loadCategories();
+		}
+	});
 
 	logoutButton?.addEventListener('click', () => {
 		pb.authStore.clear();
@@ -260,7 +301,15 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 
 	fileInput?.addEventListener('change', () => {
 		if (!(fileInput instanceof HTMLInputElement)) return;
-		setPreview(fileInput.files?.[0] || null);
+
+		const file = fileInput.files?.[0] || null;
+		if (file && !validateSelectedImage(file)) {
+			fileInput.value = '';
+			setPreview(null);
+			return;
+		}
+
+		setPreview(file);
 	});
 
 	dropzone?.addEventListener('dragover', (event) => {
@@ -279,8 +328,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://127.0.0.1
 		const file = event.dataTransfer?.files?.[0];
 		if (!file) return;
 
-		if (!file.type.startsWith('image/')) {
-			setMessage('El archivo seleccionado no parece ser una imagen.', 'error');
+		if (!validateSelectedImage(file)) {
 			return;
 		}
 
