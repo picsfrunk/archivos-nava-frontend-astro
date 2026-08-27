@@ -19,19 +19,20 @@ import Layout from '../../layouts/Layout.astro';
 		<section class="workspace" aria-labelledby="create-photo-title">
 			<div class="section-heading">
 				<p class="eyebrow">Fotografías</p>
-				<h1 id="create-photo-title">Crear fotografía</h1>
+				<h1 id="create-photo-title">Crear fotografías</h1>
 			</div>
 
 			<form id="photo-form" novalidate>
 				<div class="form-grid">
 					<section class="dropzone" id="dropzone">
-						<input id="file" name="file" type="file" accept="image/*" required />
+						<input id="file" name="file" type="file" accept="image/*" multiple required />
 						<div id="preview" class="preview" aria-live="polite">
-							<span>Arrastrá una imagen o seleccioná un archivo</span>
+							<span>Arrastrá imágenes o seleccioná archivos</span>
 						</div>
 						<button class="secondary-button" type="button" id="file-button">
-							Seleccionar imagen
+							Seleccionar imágenes
 						</button>
+						<ul id="selected-list" class="selected-list" aria-live="polite"></ul>
 					</section>
 
 					<section class="fields">
@@ -43,7 +44,7 @@ import Layout from '../../layouts/Layout.astro';
 						</label>
 
 						<label>
-							<span>Título</span>
+							<span>Título individual</span>
 							<input id="title" name="title" type="text" autocomplete="off" />
 						</label>
 
@@ -83,12 +84,17 @@ import Layout from '../../layouts/Layout.astro';
 	const fileButton = document.querySelector('#file-button');
 	const dropzone = document.querySelector('#dropzone');
 	const preview = document.querySelector('#preview');
+	const selectedList = document.querySelector('#selected-list');
 	const categorySelect = document.querySelector('#category');
+	const titleInput = document.querySelector('#title');
 	const logoutButton = document.querySelector('#logout-button');
 	const message = document.querySelector('#admin-message');
 	const maxImageBytes = 10 * 1024 * 1024;
+	const uploadConcurrency = 3;
 
-	let selectedFile = null;
+	let selectedItems = [];
+	let nextItemId = 1;
+	let isUploading = false;
 
 	function setMessage(text, type = 'neutral') {
 		if (!(message instanceof HTMLElement)) return;
@@ -121,33 +127,145 @@ import Layout from '../../layouts/Layout.astro';
 		}
 	}
 
-	function setPreview(file) {
-		selectedFile = file;
+	function formatFileSize(bytes) {
+		if (bytes >= 1024 * 1024) {
+			return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+		}
 
+		return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+	}
+
+	function getStatusLabel(status) {
+		const labels = {
+			pending: 'Pendiente',
+			uploading: 'Subiendo',
+			success: 'OK',
+			error: 'Error',
+		};
+
+		return labels[status] || status;
+	}
+
+	function refreshPreview() {
 		if (!(preview instanceof HTMLElement)) return;
 
-		if (!file) {
-			preview.innerHTML = '<span>Arrastrá una imagen o seleccioná un archivo</span>';
+		if (selectedItems.length === 0) {
+			preview.innerHTML = '<span>Arrastrá imágenes o seleccioná archivos</span>';
 			return;
 		}
 
-		const url = URL.createObjectURL(file);
 		preview.innerHTML = '';
 
-		const image = document.createElement('img');
-		image.src = url;
-		image.alt = file.name;
-		image.onload = () => URL.revokeObjectURL(url);
+		const grid = document.createElement('div');
+		grid.className = 'preview-grid';
+
+		for (const item of selectedItems.slice(0, 6)) {
+			const image = document.createElement('img');
+			image.src = item.previewUrl;
+			image.alt = item.file.name;
+			grid.append(image);
+		}
 
 		const meta = document.createElement('span');
-		meta.textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+		const extraCount = selectedItems.length > 6 ? `, ${selectedItems.length - 6} más` : '';
+		meta.textContent = `${selectedItems.length} foto${selectedItems.length === 1 ? '' : 's'} seleccionada${selectedItems.length === 1 ? '' : 's'}${extraCount}`;
 
-		preview.append(image, meta);
+		preview.append(grid, meta);
+	}
+
+	function renderSelectedList() {
+		if (!(selectedList instanceof HTMLElement)) return;
+
+		selectedList.innerHTML = '';
+
+		for (const item of selectedItems) {
+			const row = document.createElement('li');
+			row.className = 'selected-item';
+			row.dataset.status = item.status;
+
+			const image = document.createElement('img');
+			image.src = item.previewUrl;
+			image.alt = item.file.name;
+
+			const details = document.createElement('div');
+			details.className = 'selected-details';
+
+			const name = document.createElement('strong');
+			name.textContent = item.file.name;
+
+			const meta = document.createElement('span');
+			meta.textContent = `${formatFileSize(item.file.size)} - ${getStatusLabel(item.status)}`;
+
+			const progress = document.createElement('progress');
+			progress.max = 100;
+			if (item.status === 'uploading') {
+				progress.value = item.progress;
+			} else if (item.status === 'success') {
+				progress.value = 100;
+			} else {
+				progress.value = 0;
+			}
+
+			details.append(name, meta, progress);
+
+			if (item.error) {
+				const error = document.createElement('span');
+				error.className = 'item-error';
+				error.textContent = item.error;
+				details.append(error);
+			}
+
+			const removeButton = document.createElement('button');
+			removeButton.type = 'button';
+			removeButton.className = 'remove-button';
+			removeButton.textContent = 'Quitar';
+			removeButton.disabled = isUploading || item.status === 'uploading';
+			removeButton.addEventListener('click', () => removeSelectedItem(item.id));
+
+			row.append(image, details, removeButton);
+			selectedList.append(row);
+		}
+	}
+
+	function renderSelection() {
+		refreshPreview();
+		renderSelectedList();
+
+		if (titleInput instanceof HTMLInputElement) {
+			titleInput.disabled = selectedItems.length > 1;
+		}
+	}
+
+	function clearSelectedItems() {
+		for (const item of selectedItems) {
+			URL.revokeObjectURL(item.previewUrl);
+		}
+
+		selectedItems = [];
+		renderSelection();
+	}
+
+	function removeSelectedItem(id) {
+		const item = selectedItems.find((selectedItem) => selectedItem.id === id);
+		if (item) {
+			URL.revokeObjectURL(item.previewUrl);
+		}
+
+		selectedItems = selectedItems.filter((selectedItem) => selectedItem.id !== id);
+		renderSelection();
+	}
+
+	function updateSelectedItem(id, updates) {
+		selectedItems = selectedItems.map((item) =>
+			item.id === id ? { ...item, ...updates } : item,
+		);
+		renderSelectedList();
 	}
 
 	function resolveError(error) {
 		if (error?.data?.error) return error.data.error;
 		if (error?.data?.message) return error.data.message;
+		if (error?.error) return error.error;
 		if (error?.message) return error.message;
 
 		return 'No se pudo completar la operación.';
@@ -186,32 +304,173 @@ import Layout from '../../layouts/Layout.astro';
 		}
 	}
 
-	function validateSelectedImage(file) {
+	function validateImageFile(file) {
 		if (!file.type.startsWith('image/')) {
-			setMessage('El archivo seleccionado no parece ser una imagen.', 'error');
-			return false;
+			return 'no parece ser una imagen';
 		}
 
 		if (file.size > maxImageBytes) {
-			setMessage('La imagen no puede superar los 10 MB.', 'error');
-			return false;
+			return 'supera el límite de 10 MB';
 		}
 
-		return true;
+		return '';
 	}
 
-	async function createPhoto(status, submitButton) {
+	function addFiles(files) {
+		const accepted = [];
+		const rejected = [];
+
+		for (const file of files) {
+			const validationError = validateImageFile(file);
+			if (validationError) {
+				rejected.push(`${file.name}: ${validationError}`);
+				continue;
+			}
+
+			accepted.push({
+				id: nextItemId++,
+				file,
+				previewUrl: URL.createObjectURL(file),
+				status: 'pending',
+				progress: 0,
+				error: '',
+			});
+		}
+
+		selectedItems = [...selectedItems, ...accepted];
+		renderSelection();
+
+		if (rejected.length && accepted.length) {
+			setMessage(`Algunas fotos no se agregaron: ${rejected.join('; ')}.`, 'error');
+		} else if (rejected.length) {
+			setMessage(`No se agregaron fotos: ${rejected.join('; ')}.`, 'error');
+		} else if (accepted.length) {
+			setMessage('');
+		}
+	}
+
+	function uploadPhoto(item, payloadBase) {
+		return new Promise((resolve, reject) => {
+			const payload = new FormData();
+			payload.append('file', item.file);
+
+			for (const [key, value] of payloadBase.entries()) {
+				payload.append(key, value);
+			}
+
+			const request = new XMLHttpRequest();
+			request.open('POST', `${pocketbaseUrl}/api/archivos-nava/photos`);
+			request.setRequestHeader('Authorization', `Bearer ${pb.authStore.token}`);
+
+			request.upload.addEventListener('progress', (event) => {
+				if (!event.lengthComputable) return;
+
+				updateSelectedItem(item.id, {
+					progress: Math.round((event.loaded / event.total) * 100),
+				});
+			});
+
+			request.addEventListener('load', () => {
+				let result = {};
+				try {
+					result = JSON.parse(request.responseText || '{}');
+				} catch {
+					result = {};
+				}
+
+				if (request.status === 401 || request.status === 403) {
+					reject({ authError: true });
+					return;
+				}
+
+				if (request.status < 200 || request.status >= 300 || result.success === false) {
+					reject(result);
+					return;
+				}
+
+				resolve(result);
+			});
+
+			request.addEventListener('error', () => {
+				reject(new Error('No se pudo conectar con el servidor.'));
+			});
+
+			request.send(payload);
+		});
+	}
+
+	async function runLimitedUploads(items, payloadBase) {
+		let cursor = 0;
+		let authError = false;
+
+		async function worker() {
+			while (cursor < items.length && !authError) {
+				const item = items[cursor++];
+				updateSelectedItem(item.id, {
+					status: 'uploading',
+					progress: 0,
+					error: '',
+				});
+
+				try {
+					await uploadPhoto(item, payloadBase);
+					updateSelectedItem(item.id, {
+						status: 'success',
+						progress: 100,
+						error: '',
+					});
+				} catch (error) {
+					if (error?.authError) {
+						authError = true;
+						redirectToLogin();
+						return;
+					}
+
+					updateSelectedItem(item.id, {
+						status: 'error',
+						progress: 0,
+						error: resolveError(error),
+					});
+				}
+			}
+		}
+
+		await Promise.all(
+			Array.from({ length: Math.min(uploadConcurrency, items.length) }, () => worker()),
+		);
+	}
+
+	function summarizeUpload() {
+		const successCount = selectedItems.filter((item) => item.status === 'success').length;
+		const errorCount = selectedItems.filter((item) => item.status === 'error').length;
+		const pendingCount = selectedItems.filter((item) => item.status === 'pending').length;
+
+		const parts = [];
+		if (successCount) {
+			parts.push(`${successCount} subida${successCount === 1 ? '' : 's'} correctamente`);
+		}
+		if (errorCount) parts.push(`${errorCount} con error`);
+		if (pendingCount) parts.push(`${pendingCount} pendiente${pendingCount === 1 ? '' : 's'}`);
+
+		return parts.join('; ') || 'No hubo cambios.';
+	}
+
+	async function createPhotos(status, submitButton) {
 		if (!(form instanceof HTMLFormElement)) return;
 
 		const data = new FormData(form);
 		const category = String(data.get('category') || '').trim();
+		const uploadableItems = selectedItems.filter((item) =>
+			item.status === 'pending' || item.status === 'error',
+		);
 
-		if (!selectedFile) {
-			setMessage('Seleccioná una imagen antes de guardar.', 'error');
+		if (!selectedItems.length) {
+			setMessage('Seleccioná una o más imágenes antes de guardar.', 'error');
 			return;
 		}
 
-		if (!validateSelectedImage(selectedFile)) {
+		if (!uploadableItems.length) {
+			setMessage('No quedan fotos pendientes para subir.', 'success');
 			return;
 		}
 
@@ -220,62 +479,69 @@ import Layout from '../../layouts/Layout.astro';
 			return;
 		}
 
-		const payload = new FormData();
-		payload.append('file', selectedFile);
-		payload.append('category', category);
-		payload.append('status', status);
+		const payloadBase = new FormData();
+		payloadBase.append('category', category);
+		payloadBase.append('status', status);
 
-		for (const field of ['title', 'year', 'caption', 'description']) {
+		for (const field of ['year', 'caption', 'description']) {
 			const value = String(data.get(field) || '').trim();
 			if (value) {
-				payload.append(field, value);
+				payloadBase.append(field, value);
 			}
 		}
+
+		const title = String(data.get('title') || '').trim();
+		if (selectedItems.length === 1 && title) {
+			payloadBase.append('title', title);
+		}
+
+		isUploading = true;
 
 		if (submitButton instanceof HTMLButtonElement) {
 			submitButton.disabled = true;
 			submitButton.textContent = status === 'published' ? 'Publicando...' : 'Guardando...';
 		}
 
-		setMessage('');
+		for (const button of form.querySelectorAll('button[type="submit"]')) {
+			if (button !== submitButton && button instanceof HTMLButtonElement) {
+				button.disabled = true;
+			}
+		}
+
+		renderSelectedList();
+		setMessage(`Subiendo ${uploadableItems.length} foto${uploadableItems.length === 1 ? '' : 's'}...`);
 
 		try {
-			const response = await fetch(`${pocketbaseUrl}/api/archivos-nava/photos`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${pb.authStore.token}`,
-				},
-				body: payload,
-			});
-
-			const result = await response.json().catch(() => ({}));
-
-			if (response.status === 401 || response.status === 403) {
-				redirectToLogin();
-				return;
-			}
-
-			if (!response.ok || result.success === false) {
-				throw result;
-			}
-
-			form.reset();
-			setPreview(null);
-			await loadCategories();
+			await runLimitedUploads(uploadableItems, payloadBase);
+			const hasErrors = selectedItems.some((item) => item.status === 'error');
 			setMessage(
-				status === 'published'
-					? 'Fotografía publicada correctamente.'
-					: 'Borrador guardado correctamente.',
-				'success',
+				`${summarizeUpload()}${hasErrors ? '. Podés reintentar las fotos con error.' : '.'}`,
+				hasErrors ? 'error' : 'success',
 			);
-		} catch (error) {
-			setMessage(resolveError(error), 'error');
 		} finally {
+			isUploading = false;
+			renderSelectedList();
+
+			for (const button of form.querySelectorAll('button[type="submit"]')) {
+				if (button instanceof HTMLButtonElement) {
+					button.disabled = false;
+				}
+			}
+
 			if (submitButton instanceof HTMLButtonElement) {
-				submitButton.disabled = false;
 				submitButton.textContent =
 					status === 'published' ? 'Publicar' : 'Guardar borrador';
 			}
+		}
+	}
+
+	function handleFiles(files) {
+		if (!files.length) return;
+
+		addFiles(Array.from(files));
+
+		if (fileInput instanceof HTMLInputElement) {
+			fileInput.value = '';
 		}
 	}
 
@@ -299,14 +565,7 @@ import Layout from '../../layouts/Layout.astro';
 	fileInput?.addEventListener('change', () => {
 		if (!(fileInput instanceof HTMLInputElement)) return;
 
-		const file = fileInput.files?.[0] || null;
-		if (file && !validateSelectedImage(file)) {
-			fileInput.value = '';
-			setPreview(null);
-			return;
-		}
-
-		setPreview(file);
+		handleFiles(fileInput.files || []);
 	});
 
 	dropzone?.addEventListener('dragover', (event) => {
@@ -322,20 +581,7 @@ import Layout from '../../layouts/Layout.astro';
 		event.preventDefault();
 		dropzone.classList.remove('is-dragging');
 
-		const file = event.dataTransfer?.files?.[0];
-		if (!file) return;
-
-		if (!validateSelectedImage(file)) {
-			return;
-		}
-
-		if (fileInput instanceof HTMLInputElement) {
-			const transfer = new DataTransfer();
-			transfer.items.add(file);
-			fileInput.files = transfer.files;
-		}
-
-		setPreview(file);
+		handleFiles(event.dataTransfer?.files || []);
 	});
 
 	form?.addEventListener('submit', async (event) => {
@@ -347,8 +593,10 @@ import Layout from '../../layouts/Layout.astro';
 				? 'published'
 				: 'draft';
 
-		await createPhoto(status, submitter);
+		await createPhotos(status, submitter);
 	});
+
+	window.addEventListener('beforeunload', clearSelectedItems);
 </script>
 
 <style>
@@ -450,16 +698,95 @@ import Layout from '../../layouts/Layout.astro';
 		text-align: center;
 	}
 
-	.preview img {
+	.preview-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
 		width: 100%;
-		max-height: 390px;
-		object-fit: contain;
+	}
+
+	.preview-grid img {
+		width: 100%;
+		aspect-ratio: 1;
+		border-radius: 5px;
+		object-fit: cover;
 	}
 
 	.preview span {
 		margin-top: 12px;
 		font-size: 0.88rem;
 		line-height: 1.45;
+	}
+
+	.selected-list {
+		display: grid;
+		gap: 10px;
+		max-height: 360px;
+		margin: 0;
+		padding: 0;
+		overflow: auto;
+		list-style: none;
+	}
+
+	.selected-item {
+		display: grid;
+		grid-template-columns: 58px minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 12px;
+		padding: 10px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.selected-item[data-status="success"] {
+		border-color: rgba(184, 231, 201, 0.38);
+	}
+
+	.selected-item[data-status="error"] {
+		border-color: rgba(255, 180, 169, 0.42);
+	}
+
+	.selected-item > img {
+		width: 58px;
+		aspect-ratio: 1;
+		border-radius: 5px;
+		object-fit: cover;
+	}
+
+	.selected-details {
+		display: grid;
+		min-width: 0;
+		gap: 5px;
+	}
+
+	.selected-details strong,
+	.selected-details span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.selected-details strong {
+		color: #f5f5f5;
+		font-size: 0.9rem;
+		font-weight: 600;
+	}
+
+	.selected-details span {
+		color: rgba(245, 245, 245, 0.62);
+		font-size: 0.78rem;
+	}
+
+	.selected-details .item-error {
+		color: #ffb4a9;
+		white-space: normal;
+	}
+
+	progress {
+		width: 100%;
+		height: 5px;
+		accent-color: #f5f5f5;
 	}
 
 	.fields {
@@ -511,10 +838,16 @@ import Layout from '../../layouts/Layout.astro';
 	}
 
 	.secondary-button,
-	#logout-button {
+	#logout-button,
+	.remove-button {
 		border: 1px solid rgba(255, 255, 255, 0.18);
 		color: #f5f5f5;
 		background: transparent;
+	}
+
+	.remove-button {
+		padding: 9px 10px;
+		font-size: 0.78rem;
 	}
 
 	.actions {
@@ -567,6 +900,18 @@ import Layout from '../../layouts/Layout.astro';
 		.actions button,
 		#logout-button {
 			width: 100%;
+		}
+
+		.selected-item {
+			grid-template-columns: 48px minmax(0, 1fr);
+		}
+
+		.selected-item > img {
+			width: 48px;
+		}
+
+		.remove-button {
+			grid-column: 1 / -1;
 		}
 	}
 </style>
