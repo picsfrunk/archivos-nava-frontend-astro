@@ -64,7 +64,7 @@ import Layout from '../../layouts/Layout.astro';
 	}
 
 	if (pb.authStore.isValid && isAdminSession()) {
-		window.location.href = '/admin';
+		window.location.href = '/admin/photos';
 	} else if (pb.authStore.token) {
 		pb.authStore.clear();
 	}
@@ -93,7 +93,7 @@ import Layout from '../../layouts/Layout.astro';
 
 		try {
 			await pb.collection('admins').authWithPassword(identity, password);
-			window.location.href = '/admin';
+			window.location.href = '/admin/photos';
 		} catch {
 			pb.authStore.clear();
 			setMessage('No se pudo iniciar sesión. Revisá las credenciales.', 'error');

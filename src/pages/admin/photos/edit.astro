@@ -1,0 +1,271 @@
+---
+import AdminShell from '../../../components/AdminShell.astro';
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout title="Editar fotografía | ARCHIVOS NAVA" description="Edición de fotografía.">
+	<AdminShell title="Editar fotografía" active="photos">
+		<a class="back-link" href="/admin/photos">Volver al listado</a>
+
+		<div id="editor" class="editor is-loading">
+			<section class="image-panel" aria-label="Imagen actual">
+				<img id="photo-image" alt="" />
+			</section>
+
+			<form id="edit-form" class="edit-form" novalidate>
+				<label>
+					<span>Título</span>
+					<input id="title" name="title" type="text" autocomplete="off" />
+				</label>
+				<label>
+					<span>Año</span>
+					<input id="year" name="year" type="number" inputmode="numeric" />
+				</label>
+				<label>
+					<span>Epígrafe</span>
+					<input id="caption" name="caption" type="text" autocomplete="off" />
+				</label>
+				<label>
+					<span>Descripción</span>
+					<textarea id="description" name="description" rows="5"></textarea>
+				</label>
+				<label>
+					<span>Categoría</span>
+					<select id="category" name="category" required>
+						<option value="">Cargando categorías...</option>
+					</select>
+				</label>
+				<label id="status-label">
+					<span>Estado</span>
+					<select id="status" name="status">
+						<option value="draft">Borrador</option>
+						<option value="published">Publicada</option>
+					</select>
+				</label>
+
+				<div class="actions">
+					<button type="submit">Guardar cambios</button>
+				</div>
+			</form>
+		</div>
+
+		<p id="admin-message" class="message" role="status" aria-live="polite"></p>
+	</AdminShell>
+</Layout>
+
+<script>
+	import { adminFetch, loadActiveCategories, requireAdminSession, resolveError } from '../../../lib/admin';
+
+	const params = new URLSearchParams(window.location.search);
+	const photoId = params.get('id') || '';
+	const editor = document.querySelector('#editor');
+	const form = document.querySelector('#edit-form');
+	const image = document.querySelector('#photo-image');
+	const titleInput = document.querySelector('#title');
+	const yearInput = document.querySelector('#year');
+	const captionInput = document.querySelector('#caption');
+	const descriptionInput = document.querySelector('#description');
+	const categorySelect = document.querySelector('#category');
+	const statusSelect = document.querySelector('#status');
+	const statusLabel = document.querySelector('#status-label');
+	const message = document.querySelector('#admin-message');
+
+	let currentPhoto = null;
+
+	function setMessage(text, type = 'neutral') {
+		if (!(message instanceof HTMLElement)) return;
+		message.textContent = text;
+		message.dataset.type = type;
+	}
+
+	function setValue(input, value) {
+		if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+			input.value = value == null ? '' : String(value);
+		}
+	}
+
+	async function loadCategories(selectedId) {
+		if (!(categorySelect instanceof HTMLSelectElement)) return;
+
+		try {
+			const categories = await loadActiveCategories();
+			categorySelect.innerHTML = '';
+
+			const placeholder = document.createElement('option');
+			placeholder.value = '';
+			placeholder.textContent = categories.length ? 'Seleccioná una categoría' : 'No hay categorías activas';
+			categorySelect.append(placeholder);
+
+			for (const category of categories) {
+				const option = document.createElement('option');
+				option.value = category.id;
+				option.textContent = category.name || category.slug || category.id;
+				categorySelect.append(option);
+			}
+
+			categorySelect.value = selectedId || '';
+			categorySelect.disabled = categories.length === 0;
+		} catch {
+			categorySelect.innerHTML = '<option value="">No se pudieron cargar categorías</option>';
+			categorySelect.disabled = true;
+			setMessage('No se pudieron cargar las categorías activas.', 'error');
+		}
+	}
+
+	function renderPhoto(photo) {
+		currentPhoto = photo;
+		if (editor instanceof HTMLElement) editor.classList.remove('is-loading');
+		if (image instanceof HTMLImageElement) {
+			image.src = photo.image;
+			image.alt = photo.title || photo.caption || 'Fotografía';
+		}
+
+		setValue(titleInput, photo.title);
+		setValue(yearInput, photo.year);
+		setValue(captionInput, photo.caption);
+		setValue(descriptionInput, photo.description);
+		if (statusSelect instanceof HTMLSelectElement) statusSelect.value = photo.status === 'published' ? 'published' : 'draft';
+
+		if (photo.status === 'trash') {
+			if (statusLabel instanceof HTMLElement) statusLabel.hidden = true;
+		} else if (statusLabel instanceof HTMLElement) {
+			statusLabel.hidden = false;
+		}
+	}
+
+	async function loadPhoto() {
+		if (!photoId) {
+			setMessage('Falta identificar la fotografía.', 'error');
+			return;
+		}
+
+		setMessage('Cargando fotografía...');
+		try {
+			const result = await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(photoId)}`);
+			renderPhoto(result.record);
+			await loadCategories(result.record.category);
+			setMessage('');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	form?.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		if (!(form instanceof HTMLFormElement) || !currentPhoto) return;
+
+		const submitButton = form.querySelector('button[type="submit"]');
+		const data = new FormData(form);
+		const category = String(data.get('category') || '').trim();
+
+		if (!category) {
+			setMessage('Seleccioná una categoría.', 'error');
+			return;
+		}
+
+		const payload = {
+			title: String(data.get('title') || '').trim(),
+			year: String(data.get('year') || '').trim(),
+			caption: String(data.get('caption') || '').trim(),
+			description: String(data.get('description') || '').trim(),
+			category,
+		};
+
+		if (currentPhoto.status !== 'trash') {
+			payload.status = String(data.get('status') || 'draft');
+		}
+
+		if (submitButton instanceof HTMLButtonElement) {
+			submitButton.disabled = true;
+			submitButton.textContent = 'Guardando...';
+		}
+		setMessage('');
+
+		try {
+			const result = await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(photoId)}`, {
+				method: 'PATCH',
+				body: JSON.stringify(payload),
+			});
+			renderPhoto(result.record);
+			setMessage('Cambios guardados.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		} finally {
+			if (submitButton instanceof HTMLButtonElement) {
+				submitButton.disabled = false;
+				submitButton.textContent = 'Guardar cambios';
+			}
+		}
+	});
+
+	requireAdminSession().then((isValid) => {
+		if (isValid) loadPhoto();
+	});
+</script>
+
+<style>
+	.back-link {
+		display: inline-flex;
+		margin-bottom: 20px;
+		color: rgba(245, 245, 245, 0.7);
+		text-decoration: underline;
+	}
+
+	.editor {
+		display: grid;
+		grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1fr);
+		gap: 24px;
+	}
+
+	.image-panel,
+	.edit-form {
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 8px;
+		background: #171716;
+	}
+
+	.image-panel {
+		display: grid;
+		place-items: center;
+		min-height: 520px;
+		padding: 18px;
+	}
+
+	.image-panel img {
+		width: 100%;
+		max-height: 680px;
+		border-radius: 6px;
+		object-fit: contain;
+	}
+
+	.edit-form {
+		display: grid;
+		gap: 18px;
+		align-self: start;
+		padding: 24px;
+	}
+
+	.actions {
+		display: flex;
+		justify-content: flex-end;
+	}
+
+	@media (max-width: 820px) {
+		.editor {
+			grid-template-columns: 1fr;
+		}
+
+		.image-panel {
+			min-height: 300px;
+		}
+	}
+
+	@media (max-width: 540px) {
+		.actions,
+		.actions button {
+			width: 100%;
+		}
+	}
+</style>

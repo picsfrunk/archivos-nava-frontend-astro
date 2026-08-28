@@ -1,0 +1,369 @@
+---
+import AdminShell from '../../../components/AdminShell.astro';
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout title="Fotografías | ARCHIVOS NAVA" description="Gestión de fotografías.">
+	<AdminShell title="Fotografías" active="photos">
+		<div class="toolbar" aria-label="Filtros">
+			<button class="filter-button" type="button" data-filter="all" aria-pressed="true">
+				Todas
+			</button>
+			<button class="filter-button" type="button" data-filter="published">
+				Publicadas
+			</button>
+			<button class="filter-button" type="button" data-filter="draft">
+				Borradores
+			</button>
+			<button class="filter-button" type="button" data-filter="trash">
+				Papelera
+			</button>
+		</div>
+
+		<div id="photo-grid" class="photo-grid" aria-live="polite"></div>
+
+		<div class="pager">
+			<button id="previous-page" class="secondary-button" type="button">Anterior</button>
+			<span id="page-label">Página 1</span>
+			<button id="next-page" class="secondary-button" type="button">Siguiente</button>
+		</div>
+
+		<p id="admin-message" class="message" role="status" aria-live="polite"></p>
+	</AdminShell>
+</Layout>
+
+<script>
+	import { adminFetch, requireAdminSession, resolveError } from '../../../lib/admin';
+
+	const grid = document.querySelector('#photo-grid');
+	const message = document.querySelector('#admin-message');
+	const filterButtons = Array.from(document.querySelectorAll('.filter-button'));
+	const previousButton = document.querySelector('#previous-page');
+	const nextButton = document.querySelector('#next-page');
+	const pageLabel = document.querySelector('#page-label');
+	const statusLabels = {
+		draft: 'Borrador',
+		published: 'Publicada',
+		trash: 'Papelera',
+	};
+	const emptyLabels = {
+		all: 'No hay fotografías cargadas.',
+		published: 'No hay fotografías publicadas.',
+		draft: 'No hay borradores.',
+		trash: 'La papelera está vacía.',
+	};
+
+	let activeFilter = new URLSearchParams(window.location.search).get('status') || 'all';
+	let currentPage = Number(new URLSearchParams(window.location.search).get('page') || '1') || 1;
+	let hasMore = false;
+	let isLoading = false;
+
+	function setMessage(text, type = 'neutral') {
+		if (!(message instanceof HTMLElement)) return;
+		message.textContent = text;
+		message.dataset.type = type;
+	}
+
+	function formatDate(value) {
+		if (!value) return '';
+		return new Intl.DateTimeFormat('es-AR', {
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric',
+		}).format(new Date(value));
+	}
+
+	function setUrlState() {
+		const params = new URLSearchParams();
+		if (activeFilter !== 'all') params.set('status', activeFilter);
+		if (currentPage > 1) params.set('page', String(currentPage));
+		const query = params.toString();
+		window.history.replaceState(null, '', query ? `/admin/photos?${query}` : '/admin/photos');
+	}
+
+	function updateFilterButtons() {
+		for (const button of filterButtons) {
+			if (!(button instanceof HTMLButtonElement)) continue;
+			button.setAttribute('aria-pressed', button.dataset.filter === activeFilter ? 'true' : 'false');
+		}
+	}
+
+	function updatePager() {
+		if (pageLabel instanceof HTMLElement) pageLabel.textContent = `Página ${currentPage}`;
+		if (previousButton instanceof HTMLButtonElement) previousButton.disabled = isLoading || currentPage <= 1;
+		if (nextButton instanceof HTMLButtonElement) nextButton.disabled = isLoading || !hasMore;
+	}
+
+	function renderEmpty() {
+		if (!(grid instanceof HTMLElement)) return;
+		grid.innerHTML = '';
+		const empty = document.createElement('div');
+		empty.className = 'empty-state';
+		empty.textContent = emptyLabels[activeFilter] || emptyLabels.all;
+		grid.append(empty);
+	}
+
+	function photoTitle(photo) {
+		return photo.title || photo.caption || 'Sin título';
+	}
+
+	function renderPhotos(photos) {
+		if (!(grid instanceof HTMLElement)) return;
+		grid.innerHTML = '';
+
+		if (!photos.length) {
+			renderEmpty();
+			return;
+		}
+
+		for (const photo of photos) {
+			const article = document.createElement('article');
+			article.className = 'photo-card';
+
+			const image = document.createElement('img');
+			image.src = photo.image;
+			image.alt = photoTitle(photo);
+			image.loading = 'lazy';
+
+			const body = document.createElement('div');
+			body.className = 'photo-card-body';
+
+			const title = document.createElement('h2');
+			title.textContent = photoTitle(photo);
+
+			const meta = document.createElement('p');
+			const category = photo.categoryRecord?.name || photo.categoryRecord?.slug || 'Sin categoría';
+			const pieces = [category];
+			if (photo.year) pieces.push(String(photo.year));
+			const created = formatDate(photo.created);
+			if (created) pieces.push(created);
+			meta.textContent = pieces.join(' · ');
+
+			const status = document.createElement('span');
+			status.className = 'status-pill';
+			status.dataset.status = photo.status;
+			status.textContent = statusLabels[photo.status] || photo.status;
+
+			const actions = document.createElement('div');
+			actions.className = 'photo-actions';
+
+			const editLink = document.createElement('a');
+			editLink.className = 'secondary-button';
+			editLink.href = `/admin/photos/edit?id=${encodeURIComponent(photo.id)}`;
+			editLink.textContent = 'Editar';
+			actions.append(editLink);
+
+			if (photo.status === 'trash') {
+				const restoreButton = document.createElement('button');
+				restoreButton.type = 'button';
+				restoreButton.className = 'secondary-button';
+				restoreButton.textContent = 'Restaurar';
+				restoreButton.addEventListener('click', () => restorePhoto(photo.id));
+				actions.append(restoreButton);
+			} else {
+				const trashButton = document.createElement('button');
+				trashButton.type = 'button';
+				trashButton.className = 'danger-button';
+				trashButton.textContent = 'Eliminar';
+				trashButton.addEventListener('click', () => trashPhoto(photo.id));
+				actions.append(trashButton);
+			}
+
+			body.append(title, meta, status, actions);
+			article.append(image, body);
+			grid.append(article);
+		}
+	}
+
+	async function loadPhotos() {
+		isLoading = true;
+		updateFilterButtons();
+		updatePager();
+		setUrlState();
+		setMessage('Cargando fotografías...');
+
+		try {
+			const params = new URLSearchParams({
+				status: activeFilter,
+				page: String(currentPage),
+				perPage: '24',
+			});
+			const result = await adminFetch(`/api/archivos-nava/admin/photos?${params.toString()}`);
+			hasMore = Boolean(result.hasMore);
+			renderPhotos(result.items || []);
+			setMessage('');
+		} catch (error) {
+			if (error?.authError) return;
+			renderPhotos([]);
+			setMessage(resolveError(error), 'error');
+		} finally {
+			isLoading = false;
+			updatePager();
+		}
+	}
+
+	async function trashPhoto(id) {
+		const confirmed = window.confirm('¿Enviar esta fotografía a la papelera? Podrás restaurarla después.');
+		if (!confirmed) return;
+
+		try {
+			await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}/trash`, {
+				method: 'PATCH',
+			});
+			setMessage('Fotografía enviada a papelera.', 'success');
+			await loadPhotos();
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	async function restorePhoto(id) {
+		try {
+			await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}/restore`, {
+				method: 'PATCH',
+			});
+			setMessage('Fotografía restaurada como borrador.', 'success');
+			await loadPhotos();
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	for (const button of filterButtons) {
+		button.addEventListener('click', () => {
+			if (!(button instanceof HTMLButtonElement)) return;
+			activeFilter = button.dataset.filter || 'all';
+			currentPage = 1;
+			loadPhotos();
+		});
+	}
+
+	previousButton?.addEventListener('click', () => {
+		if (currentPage <= 1) return;
+		currentPage -= 1;
+		loadPhotos();
+	});
+
+	nextButton?.addEventListener('click', () => {
+		if (!hasMore) return;
+		currentPage += 1;
+		loadPhotos();
+	});
+
+	requireAdminSession().then((isValid) => {
+		if (isValid) loadPhotos();
+	});
+</script>
+
+<style>
+	.toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		margin-bottom: 22px;
+	}
+
+	.filter-button {
+		border: 1px solid rgba(255, 255, 255, 0.18);
+		color: #f5f5f5;
+		background: transparent;
+	}
+
+	.filter-button[aria-pressed="true"] {
+		color: #101010;
+		background: #f5f5f5;
+	}
+
+	.photo-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		gap: 16px;
+	}
+
+	.photo-card {
+		display: grid;
+		overflow: hidden;
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 8px;
+		background: #171716;
+	}
+
+	.photo-card img {
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		object-fit: cover;
+		background: #0b0b0b;
+	}
+
+	.photo-card-body {
+		display: grid;
+		gap: 10px;
+		padding: 14px;
+	}
+
+	.photo-card h2 {
+		margin: 0;
+		overflow: hidden;
+		color: #f5f5f5;
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1.35;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.photo-card p {
+		margin: 0;
+		overflow: hidden;
+		color: rgba(245, 245, 245, 0.62);
+		font-size: 0.82rem;
+		line-height: 1.45;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.photo-actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 4px;
+	}
+
+	.photo-actions a,
+	.photo-actions button {
+		flex: 1;
+		text-align: center;
+	}
+
+	.empty-state {
+		grid-column: 1 / -1;
+		border: 1px dashed rgba(255, 255, 255, 0.18);
+		border-radius: 8px;
+		padding: 36px;
+		color: rgba(245, 245, 245, 0.62);
+		text-align: center;
+	}
+
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 14px;
+		margin-top: 26px;
+		color: rgba(245, 245, 245, 0.66);
+	}
+
+	@media (max-width: 560px) {
+		.toolbar,
+		.pager {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.toolbar button,
+		.pager button {
+			width: 100%;
+		}
+	}
+</style>
