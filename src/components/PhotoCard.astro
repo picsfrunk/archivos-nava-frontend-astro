@@ -1,0 +1,77 @@
+---
+import {
+	displayYear,
+	photoAlt,
+	photoLabel,
+	thumbnailUrl,
+	type PhotoRecord,
+} from '../lib/public-gallery';
+
+interface Props {
+	photo: PhotoRecord;
+	showCategory?: boolean;
+}
+
+const { photo, showCategory = false } = Astro.props;
+const category = photo.expand?.category;
+const label = photoLabel(photo);
+const meta = [
+	showCategory ? category?.name : '',
+	displayYear(photo.year),
+].filter(Boolean);
+---
+
+<a class="photo-card" href={`/photo/${photo.id}`} aria-label={label}>
+	<img
+		src={thumbnailUrl(photo.image)}
+		alt={photoAlt(photo)}
+		loading="lazy"
+		width="720"
+		height="540"
+	/>
+	<span class="photo-card-body">
+		<span class="photo-title">{label}</span>
+		{meta.length > 0 && <span class="photo-meta">{meta.join(' / ')}</span>}
+	</span>
+</a>
+
+<style>
+	.photo-card {
+		display: grid;
+		gap: 12px;
+		min-width: 0;
+	}
+
+	.photo-card img {
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		object-fit: cover;
+		background: #141414;
+	}
+
+	.photo-card-body {
+		display: grid;
+		gap: 4px;
+		min-width: 0;
+	}
+
+	.photo-title,
+	.photo-meta {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.photo-title {
+		color: #f5f5f5;
+		font-size: 0.96rem;
+		line-height: 1.35;
+	}
+
+	.photo-meta {
+		color: rgba(245, 245, 245, 0.55);
+		font-size: 0.78rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+</style>

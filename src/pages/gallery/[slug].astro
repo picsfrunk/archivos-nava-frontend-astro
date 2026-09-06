@@ -1,0 +1,266 @@
+---
+import PhotoCard from '../../components/PhotoCard.astro';
+import PublicShell from '../../components/PublicShell.astro';
+import Layout from '../../layouts/Layout.astro';
+import {
+	displayYear,
+	getPublicCategories,
+	getPublicCategoryBySlug,
+	getPublicPhotosByCategory,
+	type CategoryRecord,
+	type PhotoRecord,
+} from '../../lib/public-gallery';
+
+export async function getStaticPaths() {
+	const categories = await getPublicCategories();
+
+	return categories.map((category) => ({
+		params: { slug: category.slug },
+		props: { category },
+	}));
+}
+
+const { category: staticCategory } = Astro.props as { category: CategoryRecord };
+const category = await getPublicCategoryBySlug(staticCategory.slug || '');
+
+if (!category) {
+	return Astro.redirect('/404');
+}
+
+const firstPage = await getPublicPhotosByCategory(category.id, 1, 24);
+const photos = firstPage.items;
+const hasMore = firstPage.page < firstPage.totalPages;
+---
+
+<Layout
+	title={`${category.name} | ARCHIVOS NAVA`}
+	description={category.description || `Fotografías publicadas de ${category.name} en ARCHIVOS NAVA.`}
+>
+	<PublicShell items={[{ href: '/', label: 'Inicio' }, { href: '/gallery', label: 'Galería', active: true }]}>
+		<main class="category-page" data-category-id={category.id}>
+			<header class="page-heading">
+				<a href="/gallery">Galería</a>
+				<h1>{category.name}</h1>
+				{category.description && <p>{category.description}</p>}
+			</header>
+
+			{photos.length > 0 ? (
+				<>
+					<section id="photo-grid" class="photo-grid" aria-label={`Fotografías de ${category.name}`}>
+						{photos.map((photo: PhotoRecord) => <PhotoCard photo={photo} />)}
+					</section>
+
+					{hasMore && (
+						<div class="load-more">
+							<button id="load-more-button" type="button" data-next-page="2">Cargar más</button>
+							<p id="load-more-status" role="status" aria-live="polite"></p>
+						</div>
+					)}
+				</>
+			) : (
+				<p class="empty-state">No hay fotografías publicadas en esta categoría.</p>
+			)}
+		</main>
+	</PublicShell>
+</Layout>
+
+<script>
+	import { pb } from '../../lib/pocketbase';
+	import { thumbnailUrl } from '../../lib/public-gallery';
+
+	const page = document.querySelector('.category-page');
+	const grid = document.querySelector('#photo-grid');
+	const button = document.querySelector('#load-more-button');
+	const status = document.querySelector('#load-more-status');
+	const categoryId = page instanceof HTMLElement ? page.dataset.categoryId || '' : '';
+	const perPage = 24;
+
+	function isPublicCategory(category) {
+		return Boolean(category?.active && category.slug && category.slug !== 'sin-categoria');
+	}
+
+	function isPublicPhoto(photo) {
+		return Boolean(photo?.status === 'published' && isPublicCategory(photo.expand?.category));
+	}
+
+	function text(value) {
+		return String(value || '').trim();
+	}
+
+	function photoLabel(photo) {
+		return text(photo.title) || text(photo.caption) || 'Fotografía de archivo';
+	}
+
+	function photoAlt(photo) {
+		return text(photo.title) || text(photo.caption) || 'Fotografía de ARCHIVOS NAVA';
+	}
+
+	function renderPhoto(photo) {
+		const link = document.createElement('a');
+		link.className = 'photo-card';
+		link.href = `/photo/${encodeURIComponent(photo.id)}`;
+		link.setAttribute('aria-label', photoLabel(photo));
+
+		const image = document.createElement('img');
+		image.src = thumbnailUrl(photo.image);
+		image.alt = photoAlt(photo);
+		image.loading = 'lazy';
+		image.width = 720;
+		image.height = 540;
+
+		const body = document.createElement('span');
+		body.className = 'photo-card-body';
+
+		const title = document.createElement('span');
+		title.className = 'photo-title';
+		title.textContent = photoLabel(photo);
+		body.append(title);
+
+		const year = displayYear(photo.year);
+		if (year) {
+			const meta = document.createElement('span');
+			meta.className = 'photo-meta';
+			meta.textContent = year;
+			body.append(meta);
+		}
+
+		link.append(image, body);
+		return link;
+	}
+
+	async function loadMore() {
+		if (!(button instanceof HTMLButtonElement) || !(grid instanceof HTMLElement) || !categoryId) return;
+
+		const nextPage = Number(button.dataset.nextPage || '2') || 2;
+		button.disabled = true;
+		if (status instanceof HTMLElement) status.textContent = 'Cargando...';
+
+		try {
+			const result = await pb.collection('photos').getList(nextPage, perPage, {
+				filter: pb.filter('status = "published" && category = {:category}', { category: categoryId }),
+				sort: '-created',
+				expand: 'category',
+			});
+			const items = result.items.filter(isPublicPhoto);
+			for (const photo of items) grid.append(renderPhoto(photo));
+
+			if (nextPage >= result.totalPages) {
+				button.remove();
+				if (status instanceof HTMLElement) status.textContent = '';
+			} else {
+				button.dataset.nextPage = String(nextPage + 1);
+				button.disabled = false;
+				if (status instanceof HTMLElement) status.textContent = '';
+			}
+		} catch {
+			button.disabled = false;
+			if (status instanceof HTMLElement) status.textContent = 'No se pudieron cargar más fotografías.';
+		}
+	}
+
+	button?.addEventListener('click', loadMore);
+</script>
+
+<style>
+	.category-page {
+		padding: clamp(34px, 6vw, 68px) clamp(18px, 5vw, 72px) 80px;
+	}
+
+	.page-heading {
+		max-width: 760px;
+		margin-bottom: clamp(30px, 5vw, 50px);
+	}
+
+	.page-heading a {
+		display: inline-flex;
+		margin-bottom: 18px;
+		color: rgba(245, 245, 245, 0.58);
+		font-size: 0.85rem;
+	}
+
+	h1 {
+		margin: 0;
+		font-size: clamp(2.1rem, 5vw, 4.6rem);
+		font-weight: 560;
+		line-height: 1;
+	}
+
+	.page-heading p {
+		margin: 18px 0 0;
+		color: rgba(245, 245, 245, 0.68);
+		font-size: 1rem;
+		line-height: 1.65;
+	}
+
+	.photo-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+		gap: 24px;
+	}
+
+	.load-more {
+		display: grid;
+		justify-items: center;
+		gap: 12px;
+		margin-top: 42px;
+	}
+
+	button {
+		border: 1px solid rgba(245, 245, 245, 0.24);
+		padding: 12px 18px;
+		color: #f5f5f5;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	button:disabled {
+		cursor: default;
+		opacity: 0.55;
+	}
+
+	#load-more-status,
+	.empty-state {
+		color: rgba(245, 245, 245, 0.62);
+		font-size: 0.92rem;
+		line-height: 1.55;
+	}
+
+	:global(.photo-card) {
+		display: grid;
+		gap: 12px;
+		min-width: 0;
+	}
+
+	:global(.photo-card img) {
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		object-fit: cover;
+		background: #141414;
+	}
+
+	:global(.photo-card-body) {
+		display: grid;
+		gap: 4px;
+		min-width: 0;
+	}
+
+	:global(.photo-title),
+	:global(.photo-meta) {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	:global(.photo-title) {
+		color: #f5f5f5;
+		font-size: 0.96rem;
+		line-height: 1.35;
+	}
+
+	:global(.photo-meta) {
+		color: rgba(245, 245, 245, 0.55);
+		font-size: 0.78rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+</style>

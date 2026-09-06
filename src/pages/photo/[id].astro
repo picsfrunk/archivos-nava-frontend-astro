@@ -1,0 +1,167 @@
+---
+import PublicShell from '../../components/PublicShell.astro';
+import Layout from '../../layouts/Layout.astro';
+import {
+	displayYear,
+	downloadUrl,
+	getAllPublicPhotos,
+	getPublicPhotoById,
+	photoAlt,
+	photoLabel,
+	previewUrl,
+} from '../../lib/public-gallery';
+
+export async function getStaticPaths() {
+	const photos = await getAllPublicPhotos();
+
+	return photos.map((photo) => ({
+		params: { id: photo.id },
+	}));
+}
+
+const photo = await getPublicPhotoById(Astro.params.id || '');
+
+if (!photo) {
+	return Astro.redirect('/404');
+}
+
+const category = photo.expand?.category;
+const meta = [displayYear(photo.year), category?.name || ''].filter(Boolean);
+const title = photoLabel(photo);
+---
+
+<Layout
+	title={`${title} | ARCHIVOS NAVA`}
+	description={photo.caption || photo.description || `Fotografía publicada en ARCHIVOS NAVA.`}
+>
+	<PublicShell items={[{ href: '/', label: 'Inicio' }, { href: '/gallery', label: 'Galería' }]}>
+		<main class="photo-page">
+			<nav class="breadcrumbs" aria-label="Navegación secundaria">
+				<a href="/gallery">Galería</a>
+				{category && <a href={`/gallery/${category.slug}`}>{category.name}</a>}
+			</nav>
+
+			<article class="photo-detail">
+				<figure>
+					<img src={previewUrl(photo.image)} alt={photoAlt(photo)} />
+				</figure>
+
+				<section class="photo-info" aria-labelledby="photo-title">
+					<h1 id="photo-title">{title}</h1>
+					{meta.length > 0 && <p class="meta">{meta.join(' / ')}</p>}
+					{photo.caption && <p class="caption">{photo.caption}</p>}
+					{photo.description && <p class="description">{photo.description}</p>}
+
+					<div class="actions">
+						{category && <a href={`/gallery/${category.slug}`}>Volver a {category.name}</a>}
+						<a href={downloadUrl(photo.image)} download>Descargar</a>
+					</div>
+				</section>
+			</article>
+		</main>
+	</PublicShell>
+</Layout>
+
+<style>
+	.photo-page {
+		padding: clamp(24px, 4vw, 52px) clamp(18px, 5vw, 72px) 72px;
+	}
+
+	.breadcrumbs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		margin-bottom: 28px;
+		color: rgba(245, 245, 245, 0.58);
+		font-size: 0.86rem;
+	}
+
+	.breadcrumbs a + a::before {
+		content: '/';
+		margin-right: 16px;
+		color: rgba(245, 245, 245, 0.32);
+	}
+
+	.photo-detail {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+		align-items: start;
+		gap: clamp(28px, 5vw, 64px);
+	}
+
+	figure {
+		display: grid;
+		place-items: center;
+		min-height: 320px;
+		margin: 0;
+		background: #141414;
+	}
+
+	figure img {
+		width: 100%;
+		max-height: calc(100vh - 180px);
+		object-fit: contain;
+	}
+
+	.photo-info {
+		display: grid;
+		gap: 16px;
+		padding-top: 4px;
+	}
+
+	h1 {
+		margin: 0;
+		font-size: clamp(1.8rem, 3vw, 3rem);
+		font-weight: 560;
+		line-height: 1.08;
+	}
+
+	.meta,
+	.caption,
+	.description {
+		margin: 0;
+		color: rgba(245, 245, 245, 0.68);
+		line-height: 1.65;
+	}
+
+	.meta {
+		color: rgba(245, 245, 245, 0.52);
+		font-size: 0.78rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.caption {
+		font-size: 1.02rem;
+	}
+
+	.description {
+		white-space: pre-line;
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 14px;
+		margin-top: 10px;
+	}
+
+	.actions a {
+		border-bottom: 1px solid rgba(245, 245, 245, 0.55);
+		padding-bottom: 5px;
+		color: #f5f5f5;
+		font-size: 0.86rem;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	@media (max-width: 900px) {
+		.photo-detail {
+			grid-template-columns: 1fr;
+		}
+
+		figure img {
+			max-height: 68vh;
+		}
+	}
+</style>
