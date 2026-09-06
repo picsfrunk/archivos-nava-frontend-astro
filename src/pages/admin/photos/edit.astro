@@ -84,17 +84,25 @@ import Layout from '../../../layouts/Layout.astro';
 		}
 	}
 
-	async function loadCategories(selectedId) {
+	async function loadCategories(selectedId, selectedCategory) {
 		if (!(categorySelect instanceof HTMLSelectElement)) return;
 
 		try {
 			const categories = await loadActiveCategories();
+			const hasSelected = categories.some((category) => category.id === selectedId);
 			categorySelect.innerHTML = '';
 
 			const placeholder = document.createElement('option');
 			placeholder.value = '';
 			placeholder.textContent = categories.length ? 'Seleccioná una categoría' : 'No hay categorías activas';
 			categorySelect.append(placeholder);
+
+			if (selectedId && selectedCategory && !hasSelected) {
+				const currentOption = document.createElement('option');
+				currentOption.value = selectedId;
+				currentOption.textContent = `${selectedCategory.name || selectedCategory.slug || selectedId} (inactiva)`;
+				categorySelect.append(currentOption);
+			}
 
 			for (const category of categories) {
 				const option = document.createElement('option');
@@ -104,7 +112,7 @@ import Layout from '../../../layouts/Layout.astro';
 			}
 
 			categorySelect.value = selectedId || '';
-			categorySelect.disabled = categories.length === 0;
+			categorySelect.disabled = categories.length === 0 && !selectedId;
 		} catch {
 			categorySelect.innerHTML = '<option value="">No se pudieron cargar categorías</option>';
 			categorySelect.disabled = true;
@@ -143,7 +151,7 @@ import Layout from '../../../layouts/Layout.astro';
 		try {
 			const result = await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(photoId)}`);
 			renderPhoto(result.record);
-			await loadCategories(result.record.category);
+			await loadCategories(result.record.category, result.record.categoryRecord);
 			setMessage('');
 		} catch (error) {
 			if (error?.authError) return;

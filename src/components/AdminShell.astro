@@ -2,7 +2,7 @@
 interface Props {
 	title: string;
 	eyebrow?: string;
-	active?: 'photos' | 'new';
+	active?: 'photos' | 'new' | 'categories';
 }
 
 const { title, eyebrow = 'Panel administrativo', active = 'photos' } = Astro.props;
@@ -21,6 +21,9 @@ const { title, eyebrow = 'Panel administrativo', active = 'photos' } = Astro.pro
 			</a>
 			<a href="/admin/photos/new" aria-current={active === 'new' ? 'page' : undefined}>
 				Nueva carga
+			</a>
+			<a href="/admin/categories" aria-current={active === 'categories' ? 'page' : undefined}>
+				Categorías
 			</a>
 			<button id="logout-button" type="button">Salir</button>
 		</nav>
