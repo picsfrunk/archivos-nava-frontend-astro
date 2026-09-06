@@ -1,0 +1,494 @@
+---
+import AdminShell from '../../../components/AdminShell.astro';
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout title="Categorías | ARCHIVOS NAVA" description="Gestión de categorías.">
+	<AdminShell title="Categorías" active="categories">
+		<div class="category-layout">
+			<section class="category-list" aria-labelledby="category-list-title">
+				<div class="panel-heading">
+					<h2 id="category-list-title">Listado</h2>
+					<button id="new-category-button" type="button">Nueva categoría</button>
+				</div>
+
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th>Nombre</th>
+								<th>Slug</th>
+								<th>Orden</th>
+								<th>Estado</th>
+								<th>Acciones</th>
+							</tr>
+						</thead>
+						<tbody id="category-table"></tbody>
+					</table>
+				</div>
+			</section>
+
+			<form id="category-form" class="category-form" novalidate>
+				<h2 id="form-title">Nueva categoría</h2>
+				<input id="category-id" name="id" type="hidden" />
+
+				<label>
+					<span>Nombre</span>
+					<input id="name" name="name" type="text" autocomplete="off" required />
+				</label>
+				<label>
+					<span>Slug</span>
+					<input id="slug" name="slug" type="text" autocomplete="off" placeholder="se-completa-solo" />
+				</label>
+				<label>
+					<span>Descripción</span>
+					<textarea id="description" name="description" rows="4"></textarea>
+				</label>
+				<label>
+					<span>Orden</span>
+					<input id="sort_order" name="sort_order" type="number" inputmode="numeric" step="1" />
+				</label>
+				<label class="check-row">
+					<input id="active" name="active" type="checkbox" checked />
+					<span>Activa</span>
+				</label>
+
+				<div class="form-actions">
+					<button type="submit">Guardar</button>
+					<button id="cancel-edit-button" class="secondary-button" type="button">Cancelar</button>
+				</div>
+			</form>
+		</div>
+
+		<p id="admin-message" class="message" role="status" aria-live="polite"></p>
+	</AdminShell>
+</Layout>
+
+<script>
+	import { adminFetch, loadAdminCategories, requireAdminSession, resolveError } from '../../../lib/admin';
+
+	const table = document.querySelector('#category-table');
+	const form = document.querySelector('#category-form');
+	const formTitle = document.querySelector('#form-title');
+	const idInput = document.querySelector('#category-id');
+	const nameInput = document.querySelector('#name');
+	const slugInput = document.querySelector('#slug');
+	const descriptionInput = document.querySelector('#description');
+	const sortOrderInput = document.querySelector('#sort_order');
+	const activeInput = document.querySelector('#active');
+	const newButton = document.querySelector('#new-category-button');
+	const cancelButton = document.querySelector('#cancel-edit-button');
+	const message = document.querySelector('#admin-message');
+
+	let categories = [];
+	let isLoading = false;
+
+	function setMessage(text, type = 'neutral') {
+		if (!(message instanceof HTMLElement)) return;
+		message.textContent = text;
+		message.dataset.type = type;
+	}
+
+	function normalizeSlug(value) {
+		return String(value || '')
+			.trim()
+			.toLowerCase()
+			.replace(/[áàäâ]/g, 'a')
+			.replace(/[éèëê]/g, 'e')
+			.replace(/[íìïî]/g, 'i')
+			.replace(/[óòöô]/g, 'o')
+			.replace(/[úùüû]/g, 'u')
+			.replace(/ñ/g, 'n')
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '');
+	}
+
+	function setFormMode(category = null, clearMessage = true) {
+		if (!(form instanceof HTMLFormElement)) return;
+		form.reset();
+
+		if (idInput instanceof HTMLInputElement) idInput.value = category?.id || '';
+		if (nameInput instanceof HTMLInputElement) nameInput.value = category?.name || '';
+		if (slugInput instanceof HTMLInputElement) slugInput.value = category?.slug || '';
+		if (descriptionInput instanceof HTMLTextAreaElement) descriptionInput.value = category?.description || '';
+		if (sortOrderInput instanceof HTMLInputElement) sortOrderInput.value = category?.sort_order == null ? '' : String(category.sort_order);
+		if (activeInput instanceof HTMLInputElement) activeInput.checked = category ? Boolean(category.active) : true;
+		if (formTitle instanceof HTMLElement) formTitle.textContent = category ? 'Editar categoría' : 'Nueva categoría';
+
+		form.dataset.mode = category ? 'edit' : 'create';
+		if (clearMessage) setMessage('');
+	}
+
+	function categoryLabel(category) {
+		return category.name || category.slug || category.id;
+	}
+
+	function renderEmpty() {
+		if (!(table instanceof HTMLElement)) return;
+		table.innerHTML = '';
+		const row = document.createElement('tr');
+		const cell = document.createElement('td');
+		cell.colSpan = 5;
+		cell.className = 'empty-cell';
+		cell.textContent = 'No hay categorías cargadas.';
+		row.append(cell);
+		table.append(row);
+	}
+
+	function renderCategories() {
+		if (!(table instanceof HTMLElement)) return;
+		table.innerHTML = '';
+
+		const visibleCategories = categories.filter((category) => !category.isTechnical);
+		if (!visibleCategories.length) {
+			renderEmpty();
+			return;
+		}
+
+		for (const category of visibleCategories) {
+			const row = document.createElement('tr');
+
+			const name = document.createElement('td');
+			name.textContent = categoryLabel(category);
+
+			const slug = document.createElement('td');
+			slug.textContent = category.slug || '';
+
+			const order = document.createElement('td');
+			order.textContent = category.sort_order == null ? '' : String(category.sort_order);
+
+			const status = document.createElement('td');
+			const pill = document.createElement('span');
+			pill.className = 'status-pill';
+			pill.dataset.status = category.active ? 'published' : 'draft';
+			pill.textContent = category.active ? 'Activa' : 'Inactiva';
+			status.append(pill);
+
+			const actions = document.createElement('td');
+			const actionGroup = document.createElement('div');
+			actionGroup.className = 'row-actions';
+
+			const editButton = document.createElement('button');
+			editButton.type = 'button';
+			editButton.className = 'secondary-button';
+			editButton.textContent = 'Editar';
+			editButton.addEventListener('click', () => setFormMode(category));
+
+			const upButton = document.createElement('button');
+			upButton.type = 'button';
+			upButton.className = 'secondary-button';
+			upButton.textContent = 'Subir';
+			upButton.addEventListener('click', () => moveCategory(category, -1));
+
+			const downButton = document.createElement('button');
+			downButton.type = 'button';
+			downButton.className = 'secondary-button';
+			downButton.textContent = 'Bajar';
+			downButton.addEventListener('click', () => moveCategory(category, 1));
+
+			const toggleButton = document.createElement('button');
+			toggleButton.type = 'button';
+			toggleButton.className = 'secondary-button';
+			toggleButton.textContent = category.active ? 'Desactivar' : 'Activar';
+			toggleButton.addEventListener('click', () => toggleCategory(category));
+
+			const deleteButton = document.createElement('button');
+			deleteButton.type = 'button';
+			deleteButton.className = 'danger-button';
+			deleteButton.textContent = 'Eliminar';
+			deleteButton.addEventListener('click', () => deleteCategory(category));
+
+			actionGroup.append(editButton, upButton, downButton, toggleButton, deleteButton);
+			actions.append(actionGroup);
+			row.append(name, slug, order, status, actions);
+			table.append(row);
+		}
+	}
+
+	async function loadCategories() {
+		isLoading = true;
+		setMessage('Cargando categorías...');
+		try {
+			categories = await loadAdminCategories();
+			renderCategories();
+			setMessage('');
+		} catch (error) {
+			if (error?.authError) return;
+			categories = [];
+			renderCategories();
+			setMessage(resolveError(error), 'error');
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function saveCategory(event) {
+		event.preventDefault();
+		if (!(form instanceof HTMLFormElement) || isLoading) return;
+
+		const submitButton = form.querySelector('button[type="submit"]');
+		const data = new FormData(form);
+		const id = String(data.get('id') || '').trim();
+		const name = String(data.get('name') || '').trim();
+		const rawSlug = String(data.get('slug') || '').trim();
+		const slug = rawSlug ? normalizeSlug(rawSlug) : '';
+		const sortOrder = String(data.get('sort_order') || '').trim();
+
+		if (!name) {
+			setMessage('Escribí un nombre.', 'error');
+			return;
+		}
+
+		if (rawSlug && !slug) {
+			setMessage('El slug no puede quedar vacío.', 'error');
+			return;
+		}
+
+		if (sortOrder && !Number.isInteger(Number(sortOrder))) {
+			setMessage('El orden tiene que ser un número entero.', 'error');
+			return;
+		}
+
+		const payload = {
+			name,
+			slug,
+			description: String(data.get('description') || '').trim(),
+			active: activeInput instanceof HTMLInputElement ? activeInput.checked : true,
+		};
+
+		if (sortOrder) payload.sort_order = Number(sortOrder);
+
+		if (submitButton instanceof HTMLButtonElement) {
+			submitButton.disabled = true;
+			submitButton.textContent = 'Guardando...';
+		}
+
+		try {
+			if (id) {
+				await adminFetch(`/api/archivos-nava/admin/categories/${encodeURIComponent(id)}`, {
+					method: 'PATCH',
+					body: JSON.stringify(payload),
+				});
+				await loadCategories();
+				setFormMode(null, false);
+				setMessage('Categoría actualizada.', 'success');
+			} else {
+				await adminFetch('/api/archivos-nava/admin/categories', {
+					method: 'POST',
+					body: JSON.stringify(payload),
+				});
+				await loadCategories();
+				setFormMode(null, false);
+				setMessage('Categoría creada.', 'success');
+			}
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		} finally {
+			if (submitButton instanceof HTMLButtonElement) {
+				submitButton.disabled = false;
+				submitButton.textContent = 'Guardar';
+			}
+		}
+	}
+
+	async function toggleCategory(category) {
+		try {
+			await adminFetch(`/api/archivos-nava/admin/categories/${encodeURIComponent(category.id)}/toggle`, {
+				method: 'PATCH',
+			});
+			await loadCategories();
+			setMessage(category.active ? 'Categoría desactivada.' : 'Categoría activada.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	async function updateSortOrder(category, sortOrder) {
+		await adminFetch(`/api/archivos-nava/admin/categories/${encodeURIComponent(category.id)}`, {
+			method: 'PATCH',
+			body: JSON.stringify({
+				sort_order: sortOrder,
+			}),
+		});
+	}
+
+	async function moveCategory(category, direction) {
+		const visibleCategories = categories.filter((item) => !item.isTechnical);
+		const index = visibleCategories.findIndex((item) => item.id === category.id);
+		const target = visibleCategories[index + direction];
+		if (!target) return;
+
+		const currentOrder = Number(category.sort_order) || 0;
+		const targetOrder = Number(target.sort_order) || 0;
+
+		try {
+			await Promise.all([
+				updateSortOrder(category, targetOrder),
+				updateSortOrder(target, currentOrder),
+			]);
+			await loadCategories();
+			setMessage('Orden actualizado.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	async function deleteCategory(category) {
+		const confirmed = window.confirm(`¿Eliminar "${categoryLabel(category)}"? Las fotos asociadas pasarán a papelera y no se borrarán de Cloudinary.`);
+		if (!confirmed) return;
+
+		try {
+			const result = await adminFetch(`/api/archivos-nava/admin/categories/${encodeURIComponent(category.id)}`, {
+				method: 'DELETE',
+			});
+			const count = Number(result.trashedPhotos) || 0;
+			await loadCategories();
+			setFormMode(null, false);
+			setMessage(count ? `Categoría eliminada. ${count} foto${count === 1 ? '' : 's'} enviada${count === 1 ? '' : 's'} a papelera.` : 'Categoría eliminada.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	nameInput?.addEventListener('blur', () => {
+		if (!(slugInput instanceof HTMLInputElement) || slugInput.value.trim()) return;
+		if (nameInput instanceof HTMLInputElement) slugInput.value = normalizeSlug(nameInput.value);
+	});
+
+	newButton?.addEventListener('click', () => setFormMode());
+	cancelButton?.addEventListener('click', () => setFormMode());
+	form?.addEventListener('submit', saveCategory);
+
+	requireAdminSession().then((isValid) => {
+		if (isValid) {
+			setFormMode();
+			loadCategories();
+		}
+	});
+</script>
+
+<style>
+	.category-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+		gap: 24px;
+		align-items: start;
+	}
+
+	.category-list,
+	.category-form {
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 8px;
+		background: #171716;
+	}
+
+	.category-list {
+		overflow: hidden;
+	}
+
+	.panel-heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 18px;
+	}
+
+	.category-list h2,
+	.category-form h2 {
+		margin: 0;
+		font-size: 1.1rem;
+		font-weight: 500;
+	}
+
+	.table-wrap {
+		overflow-x: auto;
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		min-width: 720px;
+	}
+
+	th,
+	td {
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+		padding: 14px 16px;
+		text-align: left;
+		vertical-align: middle;
+	}
+
+	th {
+		color: rgba(245, 245, 245, 0.58);
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	td {
+		color: rgba(245, 245, 245, 0.82);
+	}
+
+	.empty-cell {
+		padding: 28px 16px;
+		color: rgba(245, 245, 245, 0.58);
+	}
+
+	.row-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.row-actions button {
+		padding: 8px 10px;
+		font-size: 0.85rem;
+	}
+
+	.category-form {
+		display: grid;
+		gap: 16px;
+		padding: 20px;
+	}
+
+	.check-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.check-row input {
+		width: auto;
+	}
+
+	.form-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 10px;
+	}
+
+	@media (max-width: 920px) {
+		.category-layout {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 620px) {
+		.panel-heading,
+		.form-actions {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.panel-heading button,
+		.form-actions button {
+			width: 100%;
+		}
+	}
+</style>

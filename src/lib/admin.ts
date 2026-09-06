@@ -4,6 +4,10 @@ export type CategoryOption = {
 	id: string;
 	name?: string;
 	slug?: string;
+	description?: string;
+	sort_order?: number;
+	active?: boolean;
+	isTechnical?: boolean;
 };
 
 export function redirectToLogin() {
@@ -78,8 +82,15 @@ export async function adminFetch<T>(path: string, init: RequestInit = {}): Promi
 }
 
 export async function loadActiveCategories() {
-	return pb.collection('categories').getFullList<CategoryOption>({
+	const categories = await pb.collection('categories').getFullList<CategoryOption>({
 		filter: 'active = true',
 		sort: 'sort_order,name',
 	});
+
+	return categories.filter((category) => category.slug !== 'sin-categoria');
+}
+
+export async function loadAdminCategories() {
+	const result = await adminFetch<{ items: CategoryOption[] }>('/api/archivos-nava/admin/categories');
+	return result.items || [];
 }
