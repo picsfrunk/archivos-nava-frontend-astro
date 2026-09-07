@@ -4,25 +4,18 @@ import Layout from '../../layouts/Layout.astro';
 import {
 	displayYear,
 	downloadUrl,
-	getAllPublicPhotos,
 	getPublicPhotoById,
 	photoAlt,
 	photoLabel,
 	previewUrl,
 } from '../../lib/public-gallery';
 
-export async function getStaticPaths() {
-	const photos = await getAllPublicPhotos();
-
-	return photos.map((photo) => ({
-		params: { id: photo.id },
-	}));
-}
+export const prerender = false;
 
 const photo = await getPublicPhotoById(Astro.params.id || '');
 
 if (!photo) {
-	return Astro.redirect('/404');
+	return new Response('Not found', { status: 404 });
 }
 
 const category = photo.expand?.category;

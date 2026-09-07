@@ -136,13 +136,24 @@ export async function getPublicPhotosByCategory(categoryId: string, page = 1, pe
 }
 
 export async function getRecentPublicPhotos(limit = 6) {
-	const result = await pb.collection('photos').getList<PhotoRecord>(1, limit, {
-		filter: 'status = "published"',
-		sort: '-created',
-		expand: 'category',
-	});
+	const visiblePhotos: PhotoRecord[] = [];
+	const perPage = Math.max(limit * 2, 12);
+	let page = 1;
+	let totalPages = 1;
 
-	return result.items.filter(isPublicPhoto);
+	while (visiblePhotos.length < limit && page <= totalPages) {
+		const result = await pb.collection('photos').getList<PhotoRecord>(page, perPage, {
+			filter: 'status = "published"',
+			sort: '-created',
+			expand: 'category',
+		});
+
+		visiblePhotos.push(...result.items.filter(isPublicPhoto));
+		totalPages = result.totalPages;
+		page += 1;
+	}
+
+	return visiblePhotos.slice(0, limit);
 }
 
 export async function getAllPublicPhotos() {

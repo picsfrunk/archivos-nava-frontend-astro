@@ -4,27 +4,17 @@ import PublicShell from '../../components/PublicShell.astro';
 import Layout from '../../layouts/Layout.astro';
 import {
 	displayYear,
-	getPublicCategories,
 	getPublicCategoryBySlug,
 	getPublicPhotosByCategory,
-	type CategoryRecord,
 	type PhotoRecord,
 } from '../../lib/public-gallery';
 
-export async function getStaticPaths() {
-	const categories = await getPublicCategories();
+export const prerender = false;
 
-	return categories.map((category) => ({
-		params: { slug: category.slug },
-		props: { category },
-	}));
-}
-
-const { category: staticCategory } = Astro.props as { category: CategoryRecord };
-const category = await getPublicCategoryBySlug(staticCategory.slug || '');
+const category = await getPublicCategoryBySlug(Astro.params.slug || '');
 
 if (!category) {
-	return Astro.redirect('/404');
+	return new Response('Not found', { status: 404 });
 }
 
 const firstPage = await getPublicPhotosByCategory(category.id, 1, 24);
