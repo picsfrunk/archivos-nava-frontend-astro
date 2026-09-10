@@ -5,8 +5,8 @@ import Layout from '../layouts/Layout.astro';
 import { displayYear, getRecentPublicPhotos, previewUrl, photoAlt, photoLabel } from '../lib/public-gallery';
 
 const photos = await getRecentPublicPhotos(4);
-const featured = photos[0] ?? null;
-const featuredYear = featured ? displayYear(featured.year) : '';
+const primaryPhoto = photos[0] ?? null;
+const primaryPhotoYear = primaryPhoto ? displayYear(primaryPhoto.year) : '';
 ---
 
 <Layout
@@ -26,12 +26,12 @@ const featuredYear = featured ? displayYear(featured.year) : '';
 					<a class="primary-link" href="/gallery">Entrar a la galería</a>
 				</div>
 
-				{featured && (
-					<a class="featured-photo" href={`/photo/${featured.id}`} aria-label={photoLabel(featured)}>
-						<img src={previewUrl(featured.image)} alt={photoAlt(featured)} />
+				{primaryPhoto && (
+					<a class="primary-photo" href={`/photo/${primaryPhoto.id}`} aria-label={photoLabel(primaryPhoto)}>
+						<img src={previewUrl(primaryPhoto.image)} alt={photoAlt(primaryPhoto)} />
 						<span>
-							<strong>{photoLabel(featured)}</strong>
-							{featuredYear ? <em>{featuredYear}</em> : null}
+							<strong>{photoLabel(primaryPhoto)}</strong>
+							{primaryPhotoYear ? <em>{primaryPhotoYear}</em> : null}
 						</span>
 					</a>
 				)}
@@ -104,19 +104,19 @@ const featuredYear = featured ? displayYear(featured.year) : '';
 		text-transform: uppercase;
 	}
 
-	.featured-photo {
+	.primary-photo {
 		display: grid;
 		gap: 14px;
 	}
 
-	.featured-photo img {
+	.primary-photo img {
 		width: 100%;
 		max-height: 74vh;
 		object-fit: contain;
 		background: #141414;
 	}
 
-	.featured-photo span {
+	.primary-photo span {
 		display: flex;
 		justify-content: space-between;
 		gap: 16px;
@@ -125,12 +125,12 @@ const featuredYear = featured ? displayYear(featured.year) : '';
 		line-height: 1.4;
 	}
 
-	.featured-photo strong {
+	.primary-photo strong {
 		color: #f5f5f5;
 		font-weight: 520;
 	}
 
-	.featured-photo em {
+	.primary-photo em {
 		font-style: normal;
 	}
 
@@ -169,7 +169,7 @@ const featuredYear = featured ? displayYear(featured.year) : '';
 			min-height: auto;
 		}
 
-		.featured-photo img {
+		.primary-photo img {
 			max-height: 58vh;
 		}
 
