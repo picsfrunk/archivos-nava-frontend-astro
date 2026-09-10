@@ -18,6 +18,9 @@ import Layout from '../../../layouts/Layout.astro';
 			<button class="filter-button" type="button" data-filter="trash">
 				Papelera
 			</button>
+			<button id="empty-trash-button" class="danger-button" type="button" hidden>
+				Vaciar papelera
+			</button>
 		</div>
 
 		<div id="photo-grid" class="photo-grid" aria-live="polite"></div>
@@ -38,6 +41,7 @@ import Layout from '../../../layouts/Layout.astro';
 	const grid = document.querySelector('#photo-grid');
 	const message = document.querySelector('#admin-message');
 	const filterButtons = Array.from(document.querySelectorAll('.filter-button'));
+	const emptyTrashButton = document.querySelector('#empty-trash-button');
 	const previousButton = document.querySelector('#previous-page');
 	const nextButton = document.querySelector('#next-page');
 	const pageLabel = document.querySelector('#page-label');
@@ -57,6 +61,7 @@ import Layout from '../../../layouts/Layout.astro';
 	let currentPage = Number(new URLSearchParams(window.location.search).get('page') || '1') || 1;
 	let hasMore = false;
 	let isLoading = false;
+	let currentPhotos = [];
 
 	function setMessage(text, type = 'neutral') {
 		if (!(message instanceof HTMLElement)) return;
@@ -94,9 +99,17 @@ import Layout from '../../../layouts/Layout.astro';
 		if (nextButton instanceof HTMLButtonElement) nextButton.disabled = isLoading || !hasMore;
 	}
 
+	function updateTrashControls() {
+		if (!(emptyTrashButton instanceof HTMLButtonElement)) return;
+		emptyTrashButton.hidden = activeFilter !== 'trash' || currentPhotos.length === 0;
+		emptyTrashButton.disabled = isLoading || currentPhotos.length === 0;
+	}
+
 	function renderEmpty() {
 		if (!(grid instanceof HTMLElement)) return;
 		grid.innerHTML = '';
+		currentPhotos = [];
+		updateTrashControls();
 		const empty = document.createElement('div');
 		empty.className = 'empty-state';
 		empty.textContent = emptyLabels[activeFilter] || emptyLabels.all;
@@ -110,6 +123,8 @@ import Layout from '../../../layouts/Layout.astro';
 	function renderPhotos(photos) {
 		if (!(grid instanceof HTMLElement)) return;
 		grid.innerHTML = '';
+		currentPhotos = photos;
+		updateTrashControls();
 
 		if (!photos.length) {
 			renderEmpty();
@@ -160,6 +175,13 @@ import Layout from '../../../layouts/Layout.astro';
 				restoreButton.textContent = 'Restaurar';
 				restoreButton.addEventListener('click', () => restorePhoto(photo.id));
 				actions.append(restoreButton);
+
+				const permanentButton = document.createElement('button');
+				permanentButton.type = 'button';
+				permanentButton.className = 'danger-button';
+				permanentButton.textContent = 'Eliminar definitivamente';
+				permanentButton.addEventListener('click', () => deletePhotoPermanently(photo.id));
+				actions.append(permanentButton);
 			} else {
 				const trashButton = document.createElement('button');
 				trashButton.type = 'button';
@@ -179,6 +201,7 @@ import Layout from '../../../layouts/Layout.astro';
 		isLoading = true;
 		updateFilterButtons();
 		updatePager();
+		updateTrashControls();
 		setUrlState();
 		setMessage('Cargando fotografías...');
 
@@ -199,6 +222,7 @@ import Layout from '../../../layouts/Layout.astro';
 		} finally {
 			isLoading = false;
 			updatePager();
+			updateTrashControls();
 		}
 	}
 
@@ -210,8 +234,8 @@ import Layout from '../../../layouts/Layout.astro';
 			await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}/trash`, {
 				method: 'PATCH',
 			});
-			setMessage('Fotografía enviada a papelera.', 'success');
 			await loadPhotos();
+			setMessage('Fotografía enviada a papelera.', 'success');
 		} catch (error) {
 			if (error?.authError) return;
 			setMessage(resolveError(error), 'error');
@@ -223,8 +247,49 @@ import Layout from '../../../layouts/Layout.astro';
 			await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}/restore`, {
 				method: 'PATCH',
 			});
-			setMessage('Fotografía restaurada como borrador.', 'success');
 			await loadPhotos();
+			setMessage('Fotografía restaurada como borrador.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	async function deletePhotoPermanently(id) {
+		const confirmed = window.confirm(
+			'¿Eliminar definitivamente esta fotografía? Se borrará el registro y el archivo en Cloudinary. Esta acción es irreversible.',
+		);
+		if (!confirmed) return;
+
+		try {
+			await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}/permanent`, {
+				method: 'DELETE',
+			});
+			await loadPhotos();
+			setMessage('Fotografía eliminada definitivamente.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	async function emptyTrash() {
+		const confirmed = window.confirm(
+			'¿Vaciar la papelera? Se borrarán definitivamente los registros y los archivos en Cloudinary. Esta acción es irreversible.',
+		);
+		if (!confirmed) return;
+
+		try {
+			const result = await adminFetch('/api/archivos-nava/admin/photos/trash', {
+				method: 'DELETE',
+			});
+			await loadPhotos();
+
+			if (result.failed > 0) {
+				setMessage(`${result.deleted} eliminadas, ${result.failed} fallaron. Las fallidas permanecen en papelera.`, 'error');
+			} else {
+				setMessage(`${result.deleted} eliminadas definitivamente.`, 'success');
+			}
 		} catch (error) {
 			if (error?.authError) return;
 			setMessage(resolveError(error), 'error');
@@ -250,6 +315,10 @@ import Layout from '../../../layouts/Layout.astro';
 		if (!hasMore) return;
 		currentPage += 1;
 		loadPhotos();
+	});
+
+	emptyTrashButton?.addEventListener('click', () => {
+		emptyTrash();
 	});
 
 	requireAdminSession().then((isValid) => {
@@ -326,14 +395,16 @@ import Layout from '../../../layouts/Layout.astro';
 
 	.photo-actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 8px;
 		margin-top: 4px;
 	}
 
 	.photo-actions a,
 	.photo-actions button {
-		flex: 1;
+		flex: 1 1 112px;
 		text-align: center;
+		white-space: normal;
 	}
 
 	.empty-state {
