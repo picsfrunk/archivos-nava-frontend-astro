@@ -74,6 +74,10 @@ export function previewUrl(source: string) {
 	return cloudinaryUrl(source, ['f_auto', 'q_auto', 'c_limit', 'w_1600', 'h_1600']);
 }
 
+export function lightboxUrl(source: string) {
+	return cloudinaryUrl(source, ['f_auto', 'q_auto:best', 'c_limit', 'w_2400', 'h_2400']);
+}
+
 export function downloadUrl(source: string) {
 	return cloudinaryUrl(source, ['fl_attachment', 'q_auto:best']);
 }
@@ -213,4 +217,30 @@ export async function getPublicPhotoById(id: string) {
 	} catch {
 		return null;
 	}
+}
+
+export async function getPublicPhotoNavigation(photo: PhotoRecord) {
+	const categoryId = photo.expand?.category?.id || photo.category;
+	if (!categoryId || !isPublicPhoto(photo)) {
+		return { previous: null, next: null };
+	}
+
+	const photos = await pb.collection('photos').getFullList<PhotoRecord>({
+		filter: pb.filter('status = "published" && category = {:category}', {
+			category: categoryId,
+		}),
+		sort: 'sort_order,created,id',
+		expand: 'category',
+	});
+	const publicPhotos = photos.filter(isPublicPhoto);
+	const currentIndex = publicPhotos.findIndex((item) => item.id === photo.id);
+
+	if (currentIndex === -1) {
+		return { previous: null, next: null };
+	}
+
+	return {
+		previous: publicPhotos[currentIndex - 1] ?? null,
+		next: publicPhotos[currentIndex + 1] ?? null,
+	};
 }
