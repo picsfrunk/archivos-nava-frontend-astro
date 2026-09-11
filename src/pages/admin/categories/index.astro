@@ -58,6 +58,7 @@ import Layout from '../../../layouts/Layout.astro';
 					<select id="cover_photo" name="cover_photo">
 						<option value="">Automática</option>
 					</select>
+					<small id="cover-photo-help"></small>
 				</label>
 
 				<div class="form-actions">
@@ -85,6 +86,7 @@ import Layout from '../../../layouts/Layout.astro';
 	const activeInput = document.querySelector('#active');
 	const coverPhotoField = document.querySelector('#cover-photo-field');
 	const coverPhotoSelect = document.querySelector('#cover_photo');
+	const coverPhotoHelp = document.querySelector('#cover-photo-help');
 	const newButton = document.querySelector('#new-category-button');
 	const cancelButton = document.querySelector('#cancel-edit-button');
 	const message = document.querySelector('#admin-message');
@@ -94,6 +96,9 @@ import Layout from '../../../layouts/Layout.astro';
 	let selectedCategory = null;
 	let coverRequestId = 0;
 	let coverPhotoTitles = {};
+	let originalCoverPhoto = '';
+	let coverOptionsLoaded = false;
+	let coverSelectionDirty = false;
 
 	function setMessage(text, type = 'neutral') {
 		if (!(message instanceof HTMLElement)) return;
@@ -119,6 +124,9 @@ import Layout from '../../../layouts/Layout.astro';
 		if (!(form instanceof HTMLFormElement)) return;
 		form.reset();
 		selectedCategory = category;
+		originalCoverPhoto = category?.cover_photo || '';
+		coverOptionsLoaded = false;
+		coverSelectionDirty = false;
 
 		if (idInput instanceof HTMLInputElement) idInput.value = category?.id || '';
 		if (nameInput instanceof HTMLInputElement) nameInput.value = category?.name || '';
@@ -129,8 +137,13 @@ import Layout from '../../../layouts/Layout.astro';
 		if (coverPhotoField instanceof HTMLElement) coverPhotoField.hidden = !category;
 		if (coverPhotoSelect instanceof HTMLSelectElement) {
 			coverPhotoSelect.innerHTML = '<option value="">Automática</option>';
-			coverPhotoSelect.value = category?.cover_photo || '';
+			coverPhotoSelect.value = originalCoverPhoto;
 			coverPhotoSelect.disabled = !category;
+		}
+		if (coverPhotoHelp instanceof HTMLElement) {
+			coverPhotoHelp.textContent = category ? 'Cargando opciones de portada...' : '';
+			coverPhotoHelp.dataset.type = 'neutral';
+			coverPhotoHelp.hidden = !category;
 		}
 		if (formTitle instanceof HTMLElement) formTitle.textContent = category ? 'Editar categoría' : 'Nueva categoría';
 
@@ -237,8 +250,15 @@ import Layout from '../../../layouts/Layout.astro';
 
 		const requestId = coverRequestId + 1;
 		coverRequestId = requestId;
+		coverOptionsLoaded = false;
+		coverSelectionDirty = false;
 		coverPhotoSelect.disabled = true;
 		coverPhotoSelect.innerHTML = '<option value="">Automática</option>';
+		if (coverPhotoHelp instanceof HTMLElement) {
+			coverPhotoHelp.textContent = 'Cargando opciones de portada...';
+			coverPhotoHelp.dataset.type = 'neutral';
+			coverPhotoHelp.hidden = false;
+		}
 
 		try {
 			const params = new URLSearchParams({
@@ -259,9 +279,24 @@ import Layout from '../../../layouts/Layout.astro';
 
 			coverPhotoSelect.value = category.cover_photo || '';
 			coverPhotoSelect.disabled = false;
+			coverOptionsLoaded = true;
+			coverSelectionDirty = false;
+			if (coverPhotoHelp instanceof HTMLElement) {
+				coverPhotoHelp.textContent = '';
+				coverPhotoHelp.hidden = true;
+			}
 		} catch (error) {
 			if (error?.authError) return;
-			setMessage(resolveError(error), 'error');
+			if (requestId !== coverRequestId || selectedCategory?.id !== category.id) return;
+			coverOptionsLoaded = false;
+			coverSelectionDirty = false;
+			coverPhotoSelect.value = originalCoverPhoto;
+			coverPhotoSelect.disabled = true;
+			if (coverPhotoHelp instanceof HTMLElement) {
+				coverPhotoHelp.textContent = 'No se pudieron cargar las portadas. Podés guardar otros cambios; la portada actual no se modificará.';
+				coverPhotoHelp.dataset.type = 'error';
+				coverPhotoHelp.hidden = false;
+			}
 		}
 	}
 
@@ -346,7 +381,7 @@ import Layout from '../../../layouts/Layout.astro';
 					method: 'PATCH',
 					body: JSON.stringify(payload),
 				});
-				if (selectedCategory && coverPhotoSelect instanceof HTMLSelectElement) {
+				if (selectedCategory && coverPhotoSelect instanceof HTMLSelectElement && coverOptionsLoaded && coverSelectionDirty) {
 					await adminFetch(`/api/archivos-nava/admin/categories/${encodeURIComponent(id)}/cover`, {
 						method: 'PATCH',
 						body: JSON.stringify({
@@ -446,6 +481,9 @@ import Layout from '../../../layouts/Layout.astro';
 
 	newButton?.addEventListener('click', () => setFormMode());
 	cancelButton?.addEventListener('click', () => setFormMode());
+	coverPhotoSelect?.addEventListener('change', () => {
+		if (coverOptionsLoaded) coverSelectionDirty = true;
+	});
 	form?.addEventListener('submit', saveCategory);
 
 	requireAdminSession().then((isValid) => {
@@ -549,6 +587,16 @@ import Layout from '../../../layouts/Layout.astro';
 
 	.cover-photo-field[hidden] {
 		display: none;
+	}
+
+	.cover-photo-field small {
+		color: rgba(245, 245, 245, 0.58);
+		font-size: 0.85rem;
+		line-height: 1.4;
+	}
+
+	.cover-photo-field small[data-type="error"] {
+		color: #ffb4a9;
 	}
 
 	.check-row {
