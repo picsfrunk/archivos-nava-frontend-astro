@@ -85,7 +85,7 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 				<button class="lightbox-close" type="button" data-close-lightbox aria-label="Cerrar vista ampliada">
 					Cerrar
 				</button>
-				<img src={lightboxUrl(photo.image)} alt={photoAlt(photo)} />
+				<img data-src={lightboxUrl(photo.image)} alt={photoAlt(photo)} />
 			</dialog>
 		</main>
 	</PublicShell>
@@ -99,6 +99,13 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 
 	function openLightbox() {
 		if (!(lightbox instanceof HTMLDialogElement)) return;
+		const image = lightbox.querySelector('img[data-src]');
+
+		if (image instanceof HTMLImageElement && !image.dataset.loaded && image.dataset.src) {
+			image.src = image.dataset.src;
+			image.dataset.loaded = 'true';
+		}
+
 		if (!lightbox.open) lightbox.showModal();
 	}
 
