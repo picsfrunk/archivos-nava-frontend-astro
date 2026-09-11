@@ -9,6 +9,7 @@ export type CategoryRecord = RecordModel & {
 	slug?: string;
 	description?: string;
 	sort_order?: number;
+	cover_photo?: string;
 	active?: boolean;
 };
 
@@ -22,6 +23,8 @@ export type PhotoRecord = RecordModel & {
 	image: string;
 	cloudinary_public_id?: string;
 	status: 'draft' | 'published' | 'trash';
+	is_home_cover?: boolean;
+	sort_order?: number;
 	created: string;
 	expand?: {
 		category?: CategoryRecord;
@@ -83,19 +86,37 @@ export async function getPublicCategories() {
 
 	const categoriesWithPhotos = await Promise.all(
 		categories.map(async (category) => {
-			const photos = await pb.collection('photos').getList<PhotoRecord>(1, 1, {
+			const firstPage = await pb.collection('photos').getList<PhotoRecord>(1, 1, {
 				filter: pb.filter('status = "published" && category = {:category}', {
 					category: category.id,
 				}),
-				sort: '-created',
+				sort: 'sort_order,created,id',
 				expand: 'category',
 			});
 
-			const coverPhoto = photos.items.find(isPublicPhoto) ?? null;
+			let coverPhoto: PhotoRecord | null = null;
+			if (category.cover_photo) {
+				try {
+					const selectedCover = await pb.collection('photos').getFirstListItem<PhotoRecord>(
+						pb.filter('id = {:id} && status = "published" && category = {:category}', {
+							id: category.cover_photo,
+							category: category.id,
+						}),
+						{ expand: 'category' },
+					);
+					coverPhoto = isPublicPhoto(selectedCover) ? selectedCover : null;
+				} catch {
+					coverPhoto = null;
+				}
+			}
+
+			if (!coverPhoto) {
+				coverPhoto = firstPage.items.find(isPublicPhoto) ?? null;
+			}
 
 			return {
 				...category,
-				photoCount: coverPhoto ? photos.totalItems : 0,
+				photoCount: coverPhoto ? firstPage.totalItems : 0,
 				coverPhoto,
 			};
 		}),
@@ -123,7 +144,7 @@ export async function getPublicPhotosByCategory(categoryId: string, page = 1, pe
 		filter: pb.filter('status = "published" && category = {:category}', {
 			category: categoryId,
 		}),
-		sort: '-created',
+		sort: 'sort_order,created,id',
 		expand: 'category',
 	});
 
@@ -133,6 +154,19 @@ export async function getPublicPhotosByCategory(categoryId: string, page = 1, pe
 		...result,
 		items,
 	};
+}
+
+export async function getHomeCoverPhoto() {
+	try {
+		const photo = await pb.collection('photos').getFirstListItem<PhotoRecord>(
+			'is_home_cover = true && status = "published"',
+			{ expand: 'category' },
+		);
+
+		return isPublicPhoto(photo) ? photo : null;
+	} catch {
+		return null;
+	}
 }
 
 export async function getRecentPublicPhotos(limit = 6) {

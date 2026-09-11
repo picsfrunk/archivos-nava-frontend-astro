@@ -21,6 +21,12 @@ import Layout from '../../../layouts/Layout.astro';
 			<button id="empty-trash-button" class="danger-button" type="button" hidden>
 				Vaciar papelera
 			</button>
+			<label class="category-filter">
+				<span>Categoría</span>
+				<select id="category-filter">
+					<option value="">Todas</option>
+				</select>
+			</label>
 		</div>
 
 		<div id="photo-grid" class="photo-grid" aria-live="polite"></div>
@@ -36,12 +42,13 @@ import Layout from '../../../layouts/Layout.astro';
 </Layout>
 
 <script>
-	import { adminFetch, requireAdminSession, resolveError } from '../../../lib/admin';
+	import { adminFetch, loadAdminCategories, requireAdminSession, resolveError } from '../../../lib/admin';
 
 	const grid = document.querySelector('#photo-grid');
 	const message = document.querySelector('#admin-message');
 	const filterButtons = Array.from(document.querySelectorAll('.filter-button'));
 	const emptyTrashButton = document.querySelector('#empty-trash-button');
+	const categoryFilter = document.querySelector('#category-filter');
 	const previousButton = document.querySelector('#previous-page');
 	const nextButton = document.querySelector('#next-page');
 	const pageLabel = document.querySelector('#page-label');
@@ -58,10 +65,12 @@ import Layout from '../../../layouts/Layout.astro';
 	};
 
 	let activeFilter = new URLSearchParams(window.location.search).get('status') || 'all';
+	let activeCategory = new URLSearchParams(window.location.search).get('category') || '';
 	let currentPage = Number(new URLSearchParams(window.location.search).get('page') || '1') || 1;
 	let hasMore = false;
 	let isLoading = false;
 	let currentPhotos = [];
+	let categories = [];
 
 	function setMessage(text, type = 'neutral') {
 		if (!(message instanceof HTMLElement)) return;
@@ -81,6 +90,7 @@ import Layout from '../../../layouts/Layout.astro';
 	function setUrlState() {
 		const params = new URLSearchParams();
 		if (activeFilter !== 'all') params.set('status', activeFilter);
+		if (activeCategory) params.set('category', activeCategory);
 		if (currentPage > 1) params.set('page', String(currentPage));
 		const query = params.toString();
 		window.history.replaceState(null, '', query ? `/admin/photos?${query}` : '/admin/photos');
@@ -103,6 +113,25 @@ import Layout from '../../../layouts/Layout.astro';
 		if (!(emptyTrashButton instanceof HTMLButtonElement)) return;
 		emptyTrashButton.hidden = activeFilter !== 'trash' || currentPhotos.length === 0;
 		emptyTrashButton.disabled = isLoading || currentPhotos.length === 0;
+	}
+
+	function updateCategoryFilter() {
+		if (!(categoryFilter instanceof HTMLSelectElement)) return;
+
+		categoryFilter.innerHTML = '';
+		const allOption = document.createElement('option');
+		allOption.value = '';
+		allOption.textContent = 'Todas';
+		categoryFilter.append(allOption);
+
+		for (const category of categories.filter((item) => !item.isTechnical)) {
+			const option = document.createElement('option');
+			option.value = category.id;
+			option.textContent = category.name || category.slug || category.id;
+			categoryFilter.append(option);
+		}
+
+		categoryFilter.value = activeCategory;
 	}
 
 	function renderEmpty() {
@@ -159,6 +188,17 @@ import Layout from '../../../layouts/Layout.astro';
 			status.dataset.status = photo.status;
 			status.textContent = statusLabels[photo.status] || photo.status;
 
+			const badges = document.createElement('div');
+			badges.className = 'photo-badges';
+			badges.append(status);
+
+			if (photo.is_home_cover) {
+				const cover = document.createElement('span');
+				cover.className = 'status-pill cover-pill';
+				cover.textContent = 'Portada';
+				badges.append(cover);
+			}
+
 			const actions = document.createElement('div');
 			actions.className = 'photo-actions';
 
@@ -183,6 +223,32 @@ import Layout from '../../../layouts/Layout.astro';
 				permanentButton.addEventListener('click', () => deletePhotoPermanently(photo.id));
 				actions.append(permanentButton);
 			} else {
+				if (photo.status === 'published') {
+					const coverButton = document.createElement('button');
+					coverButton.type = 'button';
+					coverButton.className = 'secondary-button';
+					coverButton.textContent = photo.is_home_cover ? 'Portada actual' : 'Usar como portada';
+					coverButton.disabled = Boolean(photo.is_home_cover);
+					coverButton.addEventListener('click', () => setHomeCover(photo.id));
+					actions.append(coverButton);
+				}
+
+				if (activeCategory) {
+					const upButton = document.createElement('button');
+					upButton.type = 'button';
+					upButton.className = 'secondary-button';
+					upButton.textContent = 'Subir';
+					upButton.addEventListener('click', () => movePhoto(photo.id, 'up'));
+
+					const downButton = document.createElement('button');
+					downButton.type = 'button';
+					downButton.className = 'secondary-button';
+					downButton.textContent = 'Bajar';
+					downButton.addEventListener('click', () => movePhoto(photo.id, 'down'));
+
+					actions.append(upButton, downButton);
+				}
+
 				const trashButton = document.createElement('button');
 				trashButton.type = 'button';
 				trashButton.className = 'danger-button';
@@ -191,9 +257,21 @@ import Layout from '../../../layouts/Layout.astro';
 				actions.append(trashButton);
 			}
 
-			body.append(title, meta, status, actions);
+			body.append(title, meta, badges, actions);
 			article.append(image, body);
 			grid.append(article);
+		}
+	}
+
+	async function loadCategories() {
+		try {
+			categories = await loadAdminCategories();
+			updateCategoryFilter();
+		} catch (error) {
+			if (error?.authError) return;
+			categories = [];
+			updateCategoryFilter();
+			setMessage(resolveError(error), 'error');
 		}
 	}
 
@@ -211,6 +289,7 @@ import Layout from '../../../layouts/Layout.astro';
 				page: String(currentPage),
 				perPage: '24',
 			});
+			if (activeCategory) params.set('category', activeCategory);
 			const result = await adminFetch(`/api/archivos-nava/admin/photos?${params.toString()}`);
 			hasMore = Boolean(result.hasMore);
 			renderPhotos(result.items || []);
@@ -223,6 +302,36 @@ import Layout from '../../../layouts/Layout.astro';
 			isLoading = false;
 			updatePager();
 			updateTrashControls();
+		}
+	}
+
+	async function setHomeCover(id) {
+		try {
+			await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}/home-cover`, {
+				method: 'PATCH',
+			});
+			await loadPhotos();
+			setMessage('Portada de inicio actualizada.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	async function movePhoto(id, direction) {
+		try {
+			await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}/move`, {
+				method: 'PATCH',
+				body: JSON.stringify({
+					direction,
+					status: activeFilter,
+				}),
+			});
+			await loadPhotos();
+			setMessage('Orden público actualizado.', 'success');
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
 		}
 	}
 
@@ -305,6 +414,13 @@ import Layout from '../../../layouts/Layout.astro';
 		});
 	}
 
+	categoryFilter?.addEventListener('change', () => {
+		if (!(categoryFilter instanceof HTMLSelectElement)) return;
+		activeCategory = categoryFilter.value;
+		currentPage = 1;
+		loadPhotos();
+	});
+
 	previousButton?.addEventListener('click', () => {
 		if (currentPage <= 1) return;
 		currentPage -= 1;
@@ -322,7 +438,10 @@ import Layout from '../../../layouts/Layout.astro';
 	});
 
 	requireAdminSession().then((isValid) => {
-		if (isValid) loadPhotos();
+		if (isValid) {
+			loadCategories();
+			loadPhotos();
+		}
 	});
 </script>
 
@@ -330,8 +449,24 @@ import Layout from '../../../layouts/Layout.astro';
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
+		align-items: end;
 		gap: 10px;
 		margin-bottom: 22px;
+	}
+
+	.category-filter {
+		display: grid;
+		gap: 6px;
+		min-width: min(100%, 220px);
+		margin-left: auto;
+	}
+
+	.category-filter span {
+		color: rgba(245, 245, 245, 0.58);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.filter-button {
@@ -398,6 +533,18 @@ import Layout from '../../../layouts/Layout.astro';
 		flex-wrap: wrap;
 		gap: 8px;
 		margin-top: 4px;
+	}
+
+	.photo-badges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.cover-pill {
+		border-color: rgba(245, 245, 245, 0.62);
+		background: rgba(245, 245, 245, 0.1);
+		color: #f5f5f5;
 	}
 
 	.photo-actions a,

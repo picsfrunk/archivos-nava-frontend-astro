@@ -6,6 +6,7 @@ export type CategoryOption = {
 	slug?: string;
 	description?: string;
 	sort_order?: number;
+	cover_photo?: string;
 	active?: boolean;
 	isTechnical?: boolean;
 };

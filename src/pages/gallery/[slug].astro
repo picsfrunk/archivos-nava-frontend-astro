@@ -128,7 +128,7 @@ const hasMore = firstPage.page < firstPage.totalPages;
 		try {
 			const result = await pb.collection('photos').getList(nextPage, perPage, {
 				filter: pb.filter('status = "published" && category = {:category}', { category: categoryId }),
-				sort: '-created',
+				sort: 'sort_order,created,id',
 				expand: 'category',
 			});
 			const items = result.items.filter(isPublicPhoto);

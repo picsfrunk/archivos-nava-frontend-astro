@@ -19,6 +19,7 @@ import Layout from '../../../layouts/Layout.astro';
 								<th>Nombre</th>
 								<th>Slug</th>
 								<th>Orden</th>
+								<th>Portada</th>
 								<th>Estado</th>
 								<th>Acciones</th>
 							</tr>
@@ -52,6 +53,12 @@ import Layout from '../../../layouts/Layout.astro';
 					<input id="active" name="active" type="checkbox" checked />
 					<span>Activa</span>
 				</label>
+				<label id="cover-photo-field" class="cover-photo-field" hidden>
+					<span>Portada de categoría</span>
+					<select id="cover_photo" name="cover_photo">
+						<option value="">Automática</option>
+					</select>
+				</label>
 
 				<div class="form-actions">
 					<button type="submit">Guardar</button>
@@ -76,12 +83,17 @@ import Layout from '../../../layouts/Layout.astro';
 	const descriptionInput = document.querySelector('#description');
 	const sortOrderInput = document.querySelector('#sort_order');
 	const activeInput = document.querySelector('#active');
+	const coverPhotoField = document.querySelector('#cover-photo-field');
+	const coverPhotoSelect = document.querySelector('#cover_photo');
 	const newButton = document.querySelector('#new-category-button');
 	const cancelButton = document.querySelector('#cancel-edit-button');
 	const message = document.querySelector('#admin-message');
 
 	let categories = [];
 	let isLoading = false;
+	let selectedCategory = null;
+	let coverRequestId = 0;
+	let coverPhotoTitles = {};
 
 	function setMessage(text, type = 'neutral') {
 		if (!(message instanceof HTMLElement)) return;
@@ -106,6 +118,7 @@ import Layout from '../../../layouts/Layout.astro';
 	function setFormMode(category = null, clearMessage = true) {
 		if (!(form instanceof HTMLFormElement)) return;
 		form.reset();
+		selectedCategory = category;
 
 		if (idInput instanceof HTMLInputElement) idInput.value = category?.id || '';
 		if (nameInput instanceof HTMLInputElement) nameInput.value = category?.name || '';
@@ -113,14 +126,25 @@ import Layout from '../../../layouts/Layout.astro';
 		if (descriptionInput instanceof HTMLTextAreaElement) descriptionInput.value = category?.description || '';
 		if (sortOrderInput instanceof HTMLInputElement) sortOrderInput.value = category?.sort_order == null ? '' : String(category.sort_order);
 		if (activeInput instanceof HTMLInputElement) activeInput.checked = category ? Boolean(category.active) : true;
+		if (coverPhotoField instanceof HTMLElement) coverPhotoField.hidden = !category;
+		if (coverPhotoSelect instanceof HTMLSelectElement) {
+			coverPhotoSelect.innerHTML = '<option value="">Automática</option>';
+			coverPhotoSelect.value = category?.cover_photo || '';
+			coverPhotoSelect.disabled = !category;
+		}
 		if (formTitle instanceof HTMLElement) formTitle.textContent = category ? 'Editar categoría' : 'Nueva categoría';
 
 		form.dataset.mode = category ? 'edit' : 'create';
 		if (clearMessage) setMessage('');
+		if (category) loadCoverOptions(category);
 	}
 
 	function categoryLabel(category) {
 		return category.name || category.slug || category.id;
+	}
+
+	function photoTitle(photo) {
+		return photo.title || photo.caption || `Foto ${photo.id}`;
 	}
 
 	function renderEmpty() {
@@ -128,7 +152,7 @@ import Layout from '../../../layouts/Layout.astro';
 		table.innerHTML = '';
 		const row = document.createElement('tr');
 		const cell = document.createElement('td');
-		cell.colSpan = 5;
+		cell.colSpan = 6;
 		cell.className = 'empty-cell';
 		cell.textContent = 'No hay categorías cargadas.';
 		row.append(cell);
@@ -156,6 +180,9 @@ import Layout from '../../../layouts/Layout.astro';
 
 			const order = document.createElement('td');
 			order.textContent = category.sort_order == null ? '' : String(category.sort_order);
+
+			const cover = document.createElement('td');
+			cover.textContent = category.cover_photo ? coverPhotoTitles[category.cover_photo] || 'Portada no disponible' : 'Automática';
 
 			const status = document.createElement('td');
 			const pill = document.createElement('span');
@@ -200,9 +227,58 @@ import Layout from '../../../layouts/Layout.astro';
 
 			actionGroup.append(editButton, upButton, downButton, toggleButton, deleteButton);
 			actions.append(actionGroup);
-			row.append(name, slug, order, status, actions);
+			row.append(name, slug, order, cover, status, actions);
 			table.append(row);
 		}
+	}
+
+	async function loadCoverOptions(category) {
+		if (!(coverPhotoSelect instanceof HTMLSelectElement)) return;
+
+		const requestId = coverRequestId + 1;
+		coverRequestId = requestId;
+		coverPhotoSelect.disabled = true;
+		coverPhotoSelect.innerHTML = '<option value="">Automática</option>';
+
+		try {
+			const params = new URLSearchParams({
+				status: 'published',
+				category: category.id,
+				page: '1',
+				perPage: '200',
+			});
+			const result = await adminFetch(`/api/archivos-nava/admin/photos?${params.toString()}`);
+			if (requestId !== coverRequestId || selectedCategory?.id !== category.id) return;
+
+			for (const photo of result.items || []) {
+				const option = document.createElement('option');
+				option.value = photo.id;
+				option.textContent = photoTitle(photo);
+				coverPhotoSelect.append(option);
+			}
+
+			coverPhotoSelect.value = category.cover_photo || '';
+			coverPhotoSelect.disabled = false;
+		} catch (error) {
+			if (error?.authError) return;
+			setMessage(resolveError(error), 'error');
+		}
+	}
+
+	async function loadCoverPhotoTitles() {
+		const coverIds = categories.map((category) => category.cover_photo).filter(Boolean);
+		const entries = await Promise.all(
+			coverIds.map(async (id) => {
+				try {
+					const result = await adminFetch(`/api/archivos-nava/admin/photos/${encodeURIComponent(id)}`);
+					return [id, photoTitle(result.record)];
+				} catch {
+					return [id, 'Portada no disponible'];
+				}
+			}),
+		);
+
+		coverPhotoTitles = Object.fromEntries(entries);
 	}
 
 	async function loadCategories() {
@@ -210,6 +286,7 @@ import Layout from '../../../layouts/Layout.astro';
 		setMessage('Cargando categorías...');
 		try {
 			categories = await loadAdminCategories();
+			await loadCoverPhotoTitles();
 			renderCategories();
 			setMessage('');
 		} catch (error) {
@@ -269,6 +346,14 @@ import Layout from '../../../layouts/Layout.astro';
 					method: 'PATCH',
 					body: JSON.stringify(payload),
 				});
+				if (selectedCategory && coverPhotoSelect instanceof HTMLSelectElement) {
+					await adminFetch(`/api/archivos-nava/admin/categories/${encodeURIComponent(id)}/cover`, {
+						method: 'PATCH',
+						body: JSON.stringify({
+							photo: coverPhotoSelect.value,
+						}),
+					});
+				}
 				await loadCategories();
 				setFormMode(null, false);
 				setMessage('Categoría actualizada.', 'success');
@@ -455,6 +540,15 @@ import Layout from '../../../layouts/Layout.astro';
 		display: grid;
 		gap: 16px;
 		padding: 20px;
+	}
+
+	.cover-photo-field {
+		display: grid;
+		gap: 8px;
+	}
+
+	.cover-photo-field[hidden] {
+		display: none;
 	}
 
 	.check-row {
