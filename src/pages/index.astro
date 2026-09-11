@@ -2,11 +2,13 @@
 import PhotoCard from '../components/PhotoCard.astro';
 import PublicShell from '../components/PublicShell.astro';
 import Layout from '../layouts/Layout.astro';
-import { displayYear, getRecentPublicPhotos, previewUrl, photoAlt, photoLabel } from '../lib/public-gallery';
+import { displayYear, getHomeCoverPhoto, getRecentPublicPhotos, previewUrl, photoAlt, photoLabel } from '../lib/public-gallery';
 
 const photos = await getRecentPublicPhotos(4);
-const primaryPhoto = photos[0] ?? null;
+const homeCoverPhoto = await getHomeCoverPhoto();
+const primaryPhoto = homeCoverPhoto ?? photos[0] ?? null;
 const primaryPhotoYear = primaryPhoto ? displayYear(primaryPhoto.year) : '';
+const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).slice(0, 3);
 ---
 
 <Layout
@@ -37,14 +39,14 @@ const primaryPhotoYear = primaryPhoto ? displayYear(primaryPhoto.year) : '';
 				)}
 			</section>
 
-			{photos.length > 1 && (
+			{recentPhotos.length > 0 && (
 				<section class="recent" aria-labelledby="recent-title">
 					<div class="section-heading">
 						<h2 id="recent-title">Recientes</h2>
 						<a href="/gallery">Ver galería</a>
 					</div>
 					<div class="recent-grid">
-						{photos.slice(1).map((photo) => <PhotoCard photo={photo} showCategory />)}
+						{recentPhotos.map((photo) => <PhotoCard photo={photo} showCategory />)}
 					</div>
 				</section>
 			)}
