@@ -244,3 +244,21 @@ export async function getPublicPhotoNavigation(photo: PhotoRecord) {
 		next: publicPhotos[currentIndex + 1] ?? null,
 	};
 }
+
+// Public constraints are applied before pagination, even when called with an admin session.
+export async function searchPublicPhotos(search: string, categoryId: string, year: string, page = 1) {
+    const parts = ['status = "published"', 'category.active = true', 'category.slug != "sin-categoria"'];
+    if (search.trim()) parts.push(pb.filter('(title ~ {:search} || caption ~ {:search} || description ~ {:search})', { search: search.trim() }));
+    if (categoryId) parts.push(pb.filter('category = {:category}', { category: categoryId }));
+    if (year) parts.push(pb.filter('year = {:year}', { year: Number(year) }));
+    const result = await pb.collection('photos').getList<PhotoRecord>(page, 24, {
+        filter: parts.join(' && '), sort: categoryId ? 'sort_order,created,id' : '-created,id', expand: 'category',
+    });
+    return { ...result, items: result.items.filter(isPublicPhoto) };
+}
+
+export async function getSearchCategories() {
+    return pb.collection('categories').getFullList<CategoryRecord>({
+        filter: 'active = true && slug != "sin-categoria"', sort: 'sort_order,name',
+    });
+}

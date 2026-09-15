@@ -1,0 +1,78 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PublicShell from '../components/PublicShell.astro';
+import PhotoCard from '../components/PhotoCard.astro';
+import { getSiteSettings } from '../lib/site-settings';
+import { searchPublicPhotos, getSearchCategories } from '../lib/public-gallery';
+export const prerender = false;
+const settings = await getSiteSettings(Astro.request);
+const params = Astro.url.searchParams;
+const search = (params.get('search') || '').trim();
+const category = (params.get('category') || '').trim();
+const year = (params.get('year') || '').trim();
+const pageValue = params.get('page') || '1';
+const page = Number(pageValue);
+let error = '';
+if (year && (!/^\d{1,4}$/.test(year) || Number(year) < 1800 || Number(year) > 2100)) error = 'Ingresá un año entero entre 1800 y 2100.';
+else if (search.length > 200) error = 'La búsqueda admite hasta 200 caracteres.';
+else if (category && !/^[a-z0-9]{15}$/.test(category)) error = 'Elegí una categoría válida.';
+else if (!/^\d+$/.test(pageValue) || page < 1 || page > 1000000) error = 'La página indicada no es válida.';
+let categories = [];
+let result = { items: [], totalPages: 0, totalItems: 0 };
+if (error) Astro.response.status = 400;
+try {
+    categories = await getSearchCategories();
+    if (!error) result = await searchPublicPhotos(search, category, year, page);
+} catch {
+    error = 'No pudimos cargar las fotografías. Volvé a intentarlo en unos momentos.';
+    Astro.response.status = 503;
+}
+function pageUrl(next: number) {
+    const query = new URLSearchParams();
+    if (search) query.set('search', search);
+    if (category) query.set('category', category);
+    if (year) query.set('year', year);
+    query.set('page', String(next));
+    return `/search?${query}`;
+}
+---
+<Layout title={`Buscar | ${settings.site_name}`} description="Buscá fotografías por título, descripción, categoría o año.">
+    <PublicShell items={[{ href: '/', label: 'Inicio' }, { href: '/gallery', label: 'Galería' }]}>
+        <main>
+            <h1>Buscar fotografías</h1>
+            <form action="/search" method="get" role="search">
+                <label class="search-text">Buscar<input type="search" name="search" value={search} maxlength="200" placeholder="Título, descripción o pie de foto…" /></label>
+                <label>Categoría<select name="category"><option value="">Todas</option>{categories.map(item => <option value={item.id} selected={item.id === category}>{item.name}</option>)}</select></label>
+                <label>Año<input name="year" inputmode="numeric" maxlength="4" value={year} placeholder="Ej. 1985" /></label>
+                <button type="submit">Buscar</button>
+                <a href="/search">Limpiar filtros</a>
+            </form>
+            {error ? <p role="alert">{error}</p> : <>
+                <p role="status">{result.totalItems} fotografías encontradas</p>
+                {result.items.length ? <section class="photo-grid" aria-label="Resultados de búsqueda">{result.items.map(photo => <PhotoCard photo={photo} />)}</section>
+                    : <p>{search || category || year ? 'Ninguna fotografía coincide con los filtros.' : 'Todavía no hay fotografías publicadas.'}</p>}
+                <nav class="pager" aria-label="Páginas de resultados">
+                    {page > 1 && <a href={pageUrl(page - 1)}>Anterior</a>}
+                    <span>Página {page}{result.totalPages > 0 ? ` de ${result.totalPages}` : ''}</span>
+                    {page < result.totalPages && <a href={pageUrl(page + 1)}>Siguiente</a>}
+                </nav>
+            </>}
+        </main>
+    </PublicShell>
+</Layout>
+<style>
+    main { padding: clamp(24px, 5vw, 64px); }
+    h1 { font-size: clamp(2rem, 4vw, 3.5rem); }
+    form { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; margin: 28px 0; }
+    label { display: grid; gap: 8px; max-width: 100%; }
+    .search-text { flex: 1 1 280px; }
+    input, select, button { min-height: 44px; min-width: 0; max-width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 4px; font: inherit; }
+    input[name="year"] { width: 110px; }
+    button { cursor: pointer; }
+    form > a { padding-block: 12px; }
+    :global(.photo-grid .photo-card img) { height: auto; }
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 24px; }
+    .pager { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: center; margin-top: 36px; }
+    .pager a { padding: 12px; border: 1px solid var(--border); }
+    @media (max-width: 560px) { form { flex-direction: column; align-items: stretch; } .search-text { flex-basis: auto; } }
+</style>
