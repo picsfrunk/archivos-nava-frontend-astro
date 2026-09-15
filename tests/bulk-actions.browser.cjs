@@ -1,0 +1,28 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const assert=require('node:assert/strict');const fs=require('node:fs');
+(async()=>{const fixture=JSON.parse(fs.readFileSync(process.env.UI_FIXTURE));const browser=await chromium.launch({channel:'chrome',headless:true});const page=await browser.newPage({viewport:{width:390,height:844}});const base=(process.env.FRONTEND_URL || 'http://127.0.0.1:14321');
+try {
+ await page.goto(base+'/admin/login');await page.locator('#identity').fill('normal@example.com');await page.locator('#password').fill(fixture.password);await page.getByRole('button',{name:'Entrar'}).click();await page.waitForURL('**/admin/photos');
+ const ready=()=>page.waitForFunction(()=>!document.querySelector('#select-page').disabled);
+ await ready();await page.screenshot({path:`${process.env.UI_ARTIFACT_DIR || '/tmp'}/admin-mobile-top.png`});
+ await page.locator('input[data-photo-id]').first().check();await page.screenshot({path:`${process.env.UI_ARTIFACT_DIR || '/tmp'}/bulk-mobile.png`});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ page.once('dialog',d=>d.accept());await page.locator('[data-bulk="trash"]').click();await page.waitForFunction(()=>document.querySelector('#admin-message').textContent.includes('movidas a papelera'));
+ await page.locator('[data-filter="trash"]').click();await ready();await page.locator('#select-page').check();await page.locator('[data-bulk="restore"]').click();await page.waitForFunction(()=>document.querySelector('#admin-message').textContent.includes('restauradas como borrador'));
+ await page.locator('[data-filter="draft"]').click();await ready();await page.locator('#select-page').check();await page.locator('[data-bulk="publish"]').click();await page.waitForFunction(()=>document.querySelector('#admin-message').textContent.includes('publicadas'));
+ await page.locator('[data-filter="all"]').click();await ready();await page.locator('input[data-photo-id]').first().check();await page.locator('#choose-category').click();await page.locator('#bulk-category').selectOption({label:'Beta'});await page.locator('[data-bulk="move_category"]').click();await page.waitForFunction(()=>document.querySelector('#admin-message').textContent.includes('cambiadas de categoría'));
+ await page.goto(base+'/search');await page.screenshot({path:`${process.env.UI_ARTIFACT_DIR || '/tmp'}/search-mobile-top.png`});
+ await page.locator('#theme-choice').selectOption('dark');await page.reload();assert.equal(await page.locator('#theme-choice').inputValue(),'dark');
+ await page.goto(base+'/admin/photos');await ready();await page.getByRole('button',{name:'Salir',exact:true}).click();await page.waitForURL('**/admin/login');
+ await page.locator('#identity').fill('admin@example.com');await page.locator('#password').fill(fixture.password);await page.getByRole('button',{name:'Entrar'}).click();await page.waitForURL('**/admin/photos');await page.locator('#owner-settings-link').waitFor({state:'visible'});await page.locator('#owner-settings-link').click();await page.waitForTimeout(300);assert.ok(await page.locator('form').count());
+ await page.goto(base+'/admin/photos/new');
+ await page.locator('#category option').nth(1).waitFor({state:'attached'});
+ await page.locator('#category').selectOption({label:'Alpha'});
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jK1sAAAAASUVORK5CYII=','base64');
+ await page.locator('#file').setInputFiles([{name:'uno.png',mimeType:'image/png',buffer:png},{name:'dos.png',mimeType:'image/png',buffer:png}]);
+ await page.getByRole('button',{name:'Guardar borrador',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#admin-message').textContent.includes('2 subidas correctamente'));
+ await page.goto(base+'/gallery/alpha');await page.locator('.photo-card').first().click();
+ const neighbor=page.locator('a.next, a.previous').first();await neighbor.waitFor();const original=page.url();await neighbor.click();assert.notEqual(page.url(),original);
+ console.log('PASS: remaining bulk actions, mobile selection bar, theme persistence and owner settings access, multi-upload and photo navigation');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});
