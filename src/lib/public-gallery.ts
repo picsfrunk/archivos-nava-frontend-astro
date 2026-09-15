@@ -49,7 +49,7 @@ export function photoLabel(photo: Pick<PhotoRecord, 'title' | 'caption'>) {
 }
 
 export function photoAlt(photo: Pick<PhotoRecord, 'title' | 'caption'>) {
-	return photo.title?.trim() || photo.caption?.trim() || 'Fotografía de ARCHIVOS NAVA';
+	return photo.title?.trim() || photo.caption?.trim() || 'Fotografía de archivo';
 }
 
 export function displayYear(year?: number | null) {

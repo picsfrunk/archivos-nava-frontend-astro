@@ -1,0 +1,159 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import AdminShell from '../../../components/AdminShell.astro';
+---
+<Layout title="Configuración del sitio">
+    <AdminShell title="Configuración del sitio" active="settings" eyebrow="Configuración avanzada">
+        <p class="settings-intro">Estos cambios modifican la identidad pública del archivo.</p>
+        <p id="settings-status" role="status" aria-live="polite">Comprobando acceso…</p>
+        <button id="retry-settings" class="secondary-button" type="button" hidden>Volver a cargar</button>
+        <div id="settings-content" hidden>
+            <form id="identity-form">
+                <fieldset id="identity-fields" class="settings-card">
+                    <legend>Identidad pública</legend>
+                    <label for="site-name">Nombre del sitio</label>
+                    <input id="site-name" name="name" required maxlength="200" autocomplete="organization" />
+                    <label for="site-description">Descripción</label>
+                    <textarea id="site-description" name="description" maxlength="5000" rows="5"></textarea>
+                    <label for="default-theme">Tema predeterminado</label>
+                    <select id="default-theme" name="theme">
+                        <option value="dark">Oscuro</option>
+                        <option value="light">Claro</option>
+                        <option value="system">Según dispositivo</option>
+                    </select>
+                    <p class="field-help">Se aplica a quienes todavía no eligieron un tema en su dispositivo.</p>
+                    <button type="submit" class="primary-button">Guardar cambios</button>
+                </fieldset>
+            </form>
+            <form id="logo-form">
+                <fieldset id="logo-fields" class="settings-card">
+                    <legend>Logo</legend>
+                    <img id="logo-preview" alt="" width="240" height="80" hidden />
+                    <p id="no-logo">Sin logo: se muestra el nombre del sitio.</p>
+                    <label for="logo-file" id="logo-label">Subir logo</label>
+                    <input id="logo-file" type="file" accept=".jpg,.jpeg,.png,.webp,.avif" aria-describedby="logo-help" required />
+                    <p id="logo-help" class="field-help">Una imagen JPG, PNG, WebP o AVIF de hasta 5 MB. Conservamos sus proporciones.</p>
+                    <div class="logo-actions">
+                        <button type="submit" class="primary-button" id="upload-logo">Subir logo</button>
+                        <button type="button" class="danger-button" id="remove-logo" hidden>Quitar logo</button>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+    </AdminShell>
+</Layout>
+<script>
+    import { pb } from '../../../lib/pocketbase';
+    import { adminFetch, requireAdminSession } from '../../../lib/admin';
+    import { fetchSiteSettings, settingsPath, logoPreviewUrl, type SiteSettings } from '../../../lib/site-settings';
+
+    const status = document.querySelector('#settings-status') as HTMLParagraphElement;
+    const content = document.querySelector('#settings-content') as HTMLDivElement;
+    const retry = document.querySelector('#retry-settings') as HTMLButtonElement;
+    const name = document.querySelector('#site-name') as HTMLInputElement;
+    const description = document.querySelector('#site-description') as HTMLTextAreaElement;
+    const theme = document.querySelector('#default-theme') as HTMLSelectElement;
+    const file = document.querySelector('#logo-file') as HTMLInputElement;
+    const preview = document.querySelector('#logo-preview') as HTMLImageElement;
+    const remove = document.querySelector('#remove-logo') as HTMLButtonElement;
+    let busy = false;
+    let current: SiteSettings;
+
+    function message(text: string, error = false) {
+        status.textContent = text;
+        status.dataset.error = String(error);
+    }
+    function showLogo(settings: SiteSettings) {
+        preview.hidden = !settings.logo_url;
+        if (settings.logo_url) preview.src = logoPreviewUrl(settings.logo_url);
+        else preview.removeAttribute('src');
+        preview.alt = settings.site_name;
+        remove.hidden = !settings.logo_url;
+        (document.querySelector('#no-logo') as HTMLElement).hidden = !!settings.logo_url;
+        const label = settings.logo_url ? 'Cambiar logo' : 'Subir logo';
+        document.querySelector('#upload-logo')!.textContent = label;
+        document.querySelector('#logo-label')!.textContent = label;
+    }
+    async function load() {
+        retry.hidden = true;
+        if (!await requireAdminSession()) return;
+        if (pb.authStore.record?.role !== 'owner') {
+            message('Acceso denegado. Esta configuración está reservada al propietario del sitio.', true);
+            return;
+        }
+        try {
+            current = await fetchSiteSettings();
+            name.value = current.site_name;
+            description.value = current.site_description;
+            theme.value = current.default_theme;
+            showLogo(current);
+            content.hidden = false;
+            message('');
+        } catch {
+            message('No se pudo cargar la configuración. Vuelve a intentarlo.', true);
+            retry.hidden = false;
+        }
+    }
+    async function perform(progress: string, action: () => Promise<SiteSettings & { warning?: string }>) {
+        if (busy) return;
+        busy = true;
+        content.setAttribute('aria-busy', 'true');
+        content.querySelectorAll('fieldset').forEach(field => field.disabled = true);
+        message(progress);
+        try {
+            const result = await action();
+            current = result;
+            showLogo(current);
+            message(result.warning || 'Cambios guardados. La identidad pública ya está actualizada.');
+        } catch {
+            message('No se pudo completar la operación. Revisa tu conexión y vuelve a intentarlo.', true);
+        } finally {
+            busy = false;
+            content.removeAttribute('aria-busy');
+            content.querySelectorAll('fieldset').forEach(field => field.disabled = false);
+        }
+    }
+    document.querySelector('#identity-form')!.addEventListener('submit', event => {
+        event.preventDefault();
+        if (!name.value.trim()) { message('Escribe un nombre para el sitio.', true); name.focus(); return; }
+        void perform('Guardando cambios…', () => adminFetch(settingsPath, {
+            method: 'PATCH', body: JSON.stringify({ site_name: name.value, site_description: description.value, default_theme: theme.value }),
+        }));
+    });
+    document.querySelector('#logo-form')!.addEventListener('submit', event => {
+        event.preventDefault();
+        const image = file.files?.[0];
+        if (!image || !/\.(jpe?g|png|webp|avif)$/i.test(image.name) || !image.size || image.size > 5 * 1024 * 1024) {
+            message('Elige una imagen JPG, PNG, WebP o AVIF de hasta 5 MB.', true); return;
+        }
+        const body = new FormData(); body.append('file', image);
+        void perform('Subiendo logo…', async () => {
+            const result = await adminFetch<SiteSettings>(`${settingsPath}/logo`, { method: 'POST', body });
+            file.value = ''; return result;
+        });
+    });
+    remove.addEventListener('click', () => {
+        if (busy || !confirm('¿Quitar el logo? Se mostrará el nombre del sitio en su lugar.')) return;
+        void perform('Quitando logo…', () => adminFetch(`${settingsPath}/logo`, { method: 'DELETE' }));
+    });
+    retry.addEventListener('click', load);
+    void load();
+</script>
+<style>
+    .settings-intro { color: #bbb; line-height: 1.6; }
+    #settings-status { min-height: 1.5em; line-height: 1.5; color: #d5e7c9; }
+    #settings-status[data-error='true'] { color: #ffb5aa; }
+    #settings-content { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+    form { min-width: 0; }
+    .settings-card { margin: 0; min-width: 0; padding: clamp(18px, 3vw, 30px); border: 1px solid #555; border-radius: 8px; background: #181817; }
+    legend { padding: 0 8px; font-size: 1.1rem; }
+    label { display: block; margin: 18px 0 8px; }
+    input, textarea, select { display: block; width: 100%; min-width: 0; padding: 12px; background: #10100f; color: #f5f5f5; border: 1px solid #666; border-radius: 4px; }
+    textarea { resize: vertical; }
+    .field-help, #no-logo { font-size: .9rem; line-height: 1.6; color: #bbb; }
+    #logo-preview { width: 100%; height: 100px; object-fit: contain; margin: 12px 0 24px; }
+    .logo-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    button { cursor: pointer; }
+    :disabled { opacity: .6; cursor: wait; }
+    @media (max-width: 760px) { #settings-content { grid-template-columns: 1fr; } }
+</style>

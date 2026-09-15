@@ -1,4 +1,6 @@
 ---
+import { getSiteSettings } from '../lib/site-settings';
+const settings = await getSiteSettings(Astro.request);
 import PhotoCard from '../components/PhotoCard.astro';
 import PublicShell from '../components/PublicShell.astro';
 import Layout from '../layouts/Layout.astro';
@@ -12,19 +14,16 @@ const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).sli
 ---
 
 <Layout
-	title="ARCHIVOS NAVA"
-	description="Archivo fotográfico familiar: recuerdos, escenas y registros preservados en una galería pública."
+	title={settings.site_name}
+	description={settings.site_description}
 >
 	<PublicShell items={[{ href: '/', label: 'Inicio', active: true }, { href: '/gallery', label: 'Galería' }]}>
 		<main>
 			<section class="hero" aria-labelledby="home-title">
 				<div class="intro">
 					<p class="kicker">Archivo fotográfico</p>
-					<h1 id="home-title">ARCHIVOS NAVA</h1>
-					<p>
-						Fotografías familiares y registros personales preservados con una lectura clara,
-						ordenada por categorías y pensada para volver a mirar.
-					</p>
+					<h1 id="home-title">{settings.site_name}</h1>
+					{settings.site_description && <p class="site-description">{settings.site_description}</p>}
 					<a class="primary-link" href="/gallery">Entrar a la galería</a>
 				</div>
 
@@ -74,7 +73,7 @@ const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).sli
 
 	.kicker {
 		margin: 0 0 18px;
-		color: rgba(245, 245, 245, 0.56);
+		color: var(--text-secondary);
 		font-size: 0.78rem;
 		letter-spacing: 0.16em;
 		text-transform: uppercase;
@@ -90,7 +89,7 @@ const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).sli
 	.intro p:not(.kicker) {
 		max-width: 38rem;
 		margin: 28px 0 0;
-		color: rgba(245, 245, 245, 0.72);
+		color: var(--text-secondary);
 		font-size: clamp(1rem, 1.6vw, 1.18rem);
 		line-height: 1.7;
 	}
@@ -98,9 +97,9 @@ const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).sli
 	.primary-link {
 		display: inline-flex;
 		margin-top: 30px;
-		border-bottom: 1px solid rgba(245, 245, 245, 0.7);
+		border-bottom: 1px solid var(--text-secondary);
 		padding-bottom: 5px;
-		color: #f5f5f5;
+		color: var(--text);
 		font-size: 0.92rem;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
@@ -115,20 +114,20 @@ const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).sli
 		width: 100%;
 		max-height: 74vh;
 		object-fit: contain;
-		background: #141414;
+		background: var(--surface);
 	}
 
 	.primary-photo span {
 		display: flex;
 		justify-content: space-between;
 		gap: 16px;
-		color: rgba(245, 245, 245, 0.64);
+		color: var(--text-secondary);
 		font-size: 0.9rem;
 		line-height: 1.4;
 	}
 
 	.primary-photo strong {
-		color: #f5f5f5;
+		color: var(--text);
 		font-weight: 520;
 	}
 
@@ -155,7 +154,7 @@ const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).sli
 	}
 
 	.section-heading a {
-		color: rgba(245, 245, 245, 0.64);
+		color: var(--text-secondary);
 		font-size: 0.86rem;
 	}
 
@@ -180,3 +179,5 @@ const recentPhotos = photos.filter((photo) => photo.id !== primaryPhoto?.id).sli
 		}
 	}
 </style>
+
+<style>h1 { overflow-wrap: anywhere; } .site-description { white-space: pre-line; overflow-wrap: anywhere; }</style>

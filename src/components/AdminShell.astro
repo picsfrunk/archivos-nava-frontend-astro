@@ -2,7 +2,7 @@
 interface Props {
 	title: string;
 	eyebrow?: string;
-	active?: 'photos' | 'new' | 'categories';
+	active?: 'photos' | 'new' | 'categories' | 'settings';
 }
 
 const { title, eyebrow = 'Panel administrativo', active = 'photos' } = Astro.props;
@@ -25,6 +25,7 @@ const { title, eyebrow = 'Panel administrativo', active = 'photos' } = Astro.pro
 			<a href="/admin/categories" aria-current={active === 'categories' ? 'page' : undefined}>
 				Categorías
 			</a>
+			<a href="/admin/advanced/settings" id="owner-settings-link" hidden aria-current={active === 'settings' ? 'page' : undefined}>Configuración del sitio</a>
 			<button id="logout-button" type="button">Salir</button>
 		</nav>
 	</header>
@@ -42,7 +43,17 @@ const { title, eyebrow = 'Panel administrativo', active = 'photos' } = Astro.pro
 <script>
 	import { pb } from '../lib/pocketbase';
 
-	const logoutButton = document.querySelector('#logout-button');
+	async function showOwnerAccess() {
+        if (!pb.authStore.isValid || pb.authStore.record?.collectionName !== 'admins') return;
+        try {
+            await pb.collection('admins').authRefresh();
+            const link = document.querySelector('#owner-settings-link');
+            if (link instanceof HTMLElement) link.hidden = pb.authStore.record?.role !== 'owner';
+        } catch { /* Page session guards handle expired sessions. */ }
+    }
+    void showOwnerAccess();
+
+    const logoutButton = document.querySelector('#logout-button');
 
 	logoutButton?.addEventListener('click', () => {
 		pb.authStore.clear();
