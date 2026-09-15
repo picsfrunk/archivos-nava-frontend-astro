@@ -1,4 +1,7 @@
 ---
+import { getSiteSettings, logoPreviewUrl } from '../lib/site-settings';
+const settings = await getSiteSettings(Astro.request);
+
 type NavItem = {
 	href: string;
 	label: string;
@@ -13,7 +16,10 @@ const { items = [] } = Astro.props;
 ---
 
 <header class="site-header">
-	<a href="/" class="brand" aria-label="ARCHIVOS NAVA inicio">ARCHIVOS NAVA</a>
+	<a href="/" class="brand" aria-label={`${settings.site_name} — Inicio`}>
+        {settings.logo_url && <img src={logoPreviewUrl(settings.logo_url)} alt={settings.site_name} width="240" height="80" />}
+        <span>{settings.site_name}</span>
+    </a>
 
 	<nav aria-label="Navegación principal">
 		{items.map((item) => (
@@ -21,7 +27,15 @@ const { items = [] } = Astro.props;
 				{item.label}
 			</a>
 		))}
-	</nav>
+        <label class="theme-control">Tema
+            <select id="theme-choice" aria-label="Tema de la página">
+                <option value="default">Predeterminado</option>
+                <option value="dark">Oscuro</option>
+                <option value="light">Claro</option>
+                <option value="system">Según dispositivo</option>
+            </select>
+        </label>
+    </nav>
 </header>
 
 <slot />
@@ -37,19 +51,22 @@ const { items = [] } = Astro.props;
 		gap: 24px;
 		width: 100%;
 		padding: 24px clamp(18px, 4vw, 48px);
-		border-bottom: 1px solid rgba(245, 245, 245, 0.1);
-		background: rgba(11, 11, 11, 0.88);
+		border-bottom: 1px solid var(--border);
+		background: var(--header-background);
 		backdrop-filter: blur(18px);
 	}
 
 	.brand {
-		flex: 0 0 auto;
+		flex: 0 1 auto;
+        min-width: 0;
+        overflow-wrap: anywhere;
 		font-size: 0.92rem;
 		font-weight: 650;
 		letter-spacing: 0.18em;
 	}
 
 	nav {
+        align-items: center;
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
@@ -57,7 +74,7 @@ const { items = [] } = Astro.props;
 	}
 
 	nav a {
-		color: rgba(245, 245, 245, 0.64);
+		color: var(--text-secondary);
 		font-size: 0.88rem;
 		letter-spacing: 0.03em;
 		transition: color 160ms ease;
@@ -65,7 +82,7 @@ const { items = [] } = Astro.props;
 
 	nav a:hover,
 	nav a[aria-current='page'] {
-		color: #f5f5f5;
+		color: var(--text);
 	}
 
 	@media (max-width: 560px) {
@@ -80,4 +97,11 @@ const { items = [] } = Astro.props;
 			justify-content: flex-start;
 		}
 	}
+</style>
+
+<style>
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { width: auto; max-width: min(160px, 40vw); height: 48px; object-fit: contain; }
+    .theme-control { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--text-secondary); }
+    select { max-width: 150px; padding: 7px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
 </style>

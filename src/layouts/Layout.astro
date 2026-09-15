@@ -1,19 +1,57 @@
 ---
+import { getSiteSettings } from '../lib/site-settings';
+const settings = await getSiteSettings(Astro.request);
+const isPublic = !Astro.url.pathname.startsWith('/admin');
+
 interface Props {
 	title?: string;
 	description?: string;
 }
 
 const {
-	title = 'ARCHIVOS NAVA',
-	description = 'Un archivo de recuerdos, fotografías y pequeñas historias que merecen ser recordadas.',
+	title = settings.site_name,
+	description = settings.site_description,
 } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang="es" data-default-theme={isPublic ? settings.default_theme : undefined} data-theme={isPublic && settings.default_theme === 'light' ? 'light' : 'dark'}>
 <head>
 	<meta charset="UTF-8" />
+    {isPublic && <script is:inline>
+        (() => {
+            const root = document.documentElement;
+            const media = matchMedia('(prefers-color-scheme: dark)');
+            let override = null;
+            try { override = localStorage.getItem('archive-theme'); } catch {}
+            const valid = value => ['dark', 'light', 'system'].includes(value);
+            if (!valid(override)) override = null;
+            const choice = () => override || root.dataset.defaultTheme || 'dark';
+            const apply = () => {
+                root.dataset.theme = choice() === 'system' ? (media.matches ? 'dark' : 'light') : choice();
+                const control = document.querySelector('#theme-choice');
+                if (control) control.value = override || 'default';
+            };
+            apply();
+            media.addEventListener('change', apply);
+            document.addEventListener('DOMContentLoaded', apply, { once: true });
+            document.addEventListener('change', event => {
+                if (event.target.id !== 'theme-choice') return;
+                override = valid(event.target.value) ? event.target.value : null;
+                try {
+                    if (override) localStorage.setItem('archive-theme', override);
+                    else localStorage.removeItem('archive-theme');
+                } catch {}
+                apply();
+            });
+            window.addEventListener('storage', event => {
+                if (event.key !== 'archive-theme' && event.key !== null) return;
+                override = valid(event.newValue) ? event.newValue : null;
+                apply();
+            });
+        })();
+    </script>}
+
 	<meta name="viewport" content="width=device-width" />
 	<meta name="description" content={description} />
 	<link rel="icon" href="/favicon.svg" />
@@ -34,9 +72,17 @@ const {
 			"Segoe UI",
 			sans-serif;
 
-		color-scheme: dark;
-		background: #0b0b0b;
-		color: #f5f5f5;
+		--background: #0b0b0b;
+        --background-secondary: #101010;
+        --surface: #181818;
+        --text: #f5f5f5;
+        --text-secondary: #b0b0b0;
+        --border: #555;
+        --accent: #e6d5b8;
+        --header-background: rgb(11 11 11 / 94%);
+        color-scheme: dark;
+		background: var(--background);
+		color: var(--text);
 	}
 
 	html,
@@ -44,7 +90,7 @@ const {
 		margin: 0;
 		width: 100%;
 		min-height: 100%;
-		background: #0b0b0b;
+		background: var(--background);
 	}
 
 	body {
@@ -77,4 +123,19 @@ const {
 		display: block;
 		max-width: 100%;
 	}
+</style>
+<style is:global>
+    :root[data-theme='light'] {
+        --background: #f7f6f2;
+        --background-secondary: #eeede7;
+        --surface: #e9e8e2;
+        --text: #20201d;
+        --text-secondary: #57574f;
+        --border: #8a8a80;
+        --accent: #655132;
+        --header-background: rgb(247 246 242 / 94%);
+        color-scheme: light;
+    }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    [hidden] { display: none !important; }
 </style>
