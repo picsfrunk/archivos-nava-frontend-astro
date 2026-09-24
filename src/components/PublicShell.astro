@@ -27,6 +27,7 @@ const { items = [] } = Astro.props;
 				{item.label}
 			</a>
 		))}
+        <a href="/search" aria-current={Astro.url.pathname === "/search" ? "page" : undefined}>Buscar</a>
         <label class="theme-control">Tema
             <select id="theme-choice" aria-label="Tema de la página">
                 <option value="default">Predeterminado</option>
