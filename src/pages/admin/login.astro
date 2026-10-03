@@ -63,10 +63,21 @@ import Layout from '../../layouts/Layout.astro';
 		return pb.authStore.model?.collectionName === 'admins';
 	}
 
+	const urlParams = new URLSearchParams(window.location.search);
+	const isExpired = urlParams.get('expired') === '1';
+	const rawRedirect = urlParams.get('redirect') || '';
+	const safeRedirect = (rawRedirect.startsWith('/admin') && !rawRedirect.startsWith('/admin/login'))
+		? rawRedirect
+		: '/admin/photos';
+
 	if (pb.authStore.isValid && isAdminSession()) {
-		window.location.href = '/admin/photos';
+		window.location.href = safeRedirect;
 	} else if (pb.authStore.token) {
 		pb.authStore.clear();
+	}
+
+	if (isExpired) {
+		setMessage('Tu sesión ha expirado. Por favor, ingresá nuevamente.', 'error');
 	}
 
 	form?.addEventListener('submit', async (event) => {
@@ -93,7 +104,7 @@ import Layout from '../../layouts/Layout.astro';
 
 		try {
 			await pb.collection('admins').authWithPassword(identity, password);
-			window.location.href = '/admin/photos';
+			window.location.href = safeRedirect;
 		} catch {
 			pb.authStore.clear();
 			setMessage('No se pudo iniciar sesión. Revisá las credenciales.', 'error');

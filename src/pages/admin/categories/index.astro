@@ -53,13 +53,54 @@ import Layout from '../../../layouts/Layout.astro';
 					<input id="active" name="active" type="checkbox" checked />
 					<span>Activa</span>
 				</label>
-				<label id="cover-photo-field" class="cover-photo-field" hidden>
-					<span>Portada de categoría</span>
-					<select id="cover_photo" name="cover_photo">
-						<option value="">Automática</option>
+				<div id="cover-photo-field" class="cover-photo-field" hidden>
+					<span class="cover-field-title">Portada de categoría</span>
+					<select id="cover_photo" name="cover_photo" class="visually-hidden">
+						<option value="">Usar la primera foto automáticamente</option>
 					</select>
-					<small id="cover-photo-help"></small>
-				</label>
+
+					<div id="cover-preview-card" class="cover-preview-card">
+						<div class="cover-card-media">
+							<img id="cover-preview-img" src="" alt="Portada actual" hidden />
+							<div id="cover-placeholder" class="cover-placeholder">
+								<span class="cover-icon">🖼️</span>
+							</div>
+						</div>
+						<div class="cover-card-content">
+							<div class="cover-status-badge-wrap">
+								<span id="cover-status-badge" class="cover-status-badge">Sin portada seleccionada</span>
+							</div>
+							<p id="cover-status-title" class="cover-status-title">Usar la primera foto automáticamente</p>
+							<p id="cover-status-desc" class="cover-status-desc">
+								La galería mostrará la primera foto pública según el orden editorial.
+							</p>
+							<div class="cover-card-actions">
+								<button id="open-cover-picker-button" class="secondary-button" type="button" disabled>
+									Elegir foto
+								</button>
+								<button id="clear-cover-button" class="secondary-button" type="button" hidden>
+									Quitar portada
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<div id="cover-picker-panel" class="cover-picker-panel" hidden>
+						<div class="cover-picker-header">
+							<h3 class="cover-picker-title">Elegir fotografía para portada</h3>
+							<button id="close-cover-picker-button" class="close-picker-button" type="button" aria-label="Cerrar selector">×</button>
+						</div>
+						<div class="cover-picker-options">
+							<button id="picker-auto-button" class="picker-auto-button" type="button">
+								<strong>Usar la primera foto automáticamente</strong>
+								<span>No fijar ninguna portada; se tomará la primera foto pública por orden.</span>
+							</button>
+						</div>
+						<div id="cover-picker-list" class="cover-picker-list" aria-label="Fotografías publicadas"></div>
+					</div>
+
+					<small id="cover-photo-help" class="cover-photo-help"></small>
+				</div>
 
 				<div class="form-actions">
 					<button type="submit">Guardar</button>
@@ -87,6 +128,17 @@ import Layout from '../../../layouts/Layout.astro';
 	const coverPhotoField = document.querySelector('#cover-photo-field');
 	const coverPhotoSelect = document.querySelector('#cover_photo');
 	const coverPhotoHelp = document.querySelector('#cover-photo-help');
+	const coverPreviewImg = document.querySelector('#cover-preview-img');
+	const coverPlaceholder = document.querySelector('#cover-placeholder');
+	const coverStatusBadge = document.querySelector('#cover-status-badge');
+	const coverStatusTitle = document.querySelector('#cover-status-title');
+	const coverStatusDesc = document.querySelector('#cover-status-desc');
+	const openCoverPickerButton = document.querySelector('#open-cover-picker-button');
+	const clearCoverButton = document.querySelector('#clear-cover-button');
+	const coverPickerPanel = document.querySelector('#cover-picker-panel');
+	const closeCoverPickerButton = document.querySelector('#close-cover-picker-button');
+	const pickerAutoButton = document.querySelector('#picker-auto-button');
+	const coverPickerList = document.querySelector('#cover-picker-list');
 	const newButton = document.querySelector('#new-category-button');
 	const cancelButton = document.querySelector('#cancel-edit-button');
 	const message = document.querySelector('#admin-message');
@@ -99,6 +151,7 @@ import Layout from '../../../layouts/Layout.astro';
 	let originalCoverPhoto = '';
 	let coverOptionsLoaded = false;
 	let coverSelectionDirty = false;
+	let availableCategoryPhotos = [];
 
 	function setMessage(text, type = 'neutral') {
 		if (!(message instanceof HTMLElement)) return;
@@ -120,6 +173,129 @@ import Layout from '../../../layouts/Layout.astro';
 			.replace(/^-+|-+$/g, '');
 	}
 
+	function updateCoverUI() {
+		const currentCoverId = coverPhotoSelect instanceof HTMLSelectElement ? coverPhotoSelect.value : '';
+		const matchingPhoto = availableCategoryPhotos.find((p) => p.id === currentCoverId);
+
+		if (currentCoverId && matchingPhoto) {
+			if (coverStatusBadge instanceof HTMLElement) {
+				coverStatusBadge.textContent = 'Portada seleccionada';
+				coverStatusBadge.dataset.type = 'selected';
+			}
+			if (coverStatusTitle instanceof HTMLElement) coverStatusTitle.textContent = photoTitle(matchingPhoto);
+			if (coverStatusDesc instanceof HTMLElement) {
+				const yearPart = matchingPhoto.year ? ` · Año ${matchingPhoto.year}` : '';
+				coverStatusDesc.textContent = `Esta foto será la imagen representativa de la categoría${yearPart}.`;
+			}
+			if (coverPreviewImg instanceof HTMLImageElement) {
+				coverPreviewImg.src = matchingPhoto.image;
+				coverPreviewImg.alt = photoTitle(matchingPhoto);
+				coverPreviewImg.hidden = false;
+			}
+			if (coverPlaceholder instanceof HTMLElement) coverPlaceholder.hidden = true;
+			if (openCoverPickerButton instanceof HTMLButtonElement) openCoverPickerButton.textContent = 'Cambiar foto';
+			if (clearCoverButton instanceof HTMLButtonElement) clearCoverButton.hidden = false;
+		} else if (currentCoverId && !matchingPhoto && originalCoverPhoto === currentCoverId) {
+			const title = coverPhotoTitles[currentCoverId] || 'Portada asignada';
+			if (coverStatusBadge instanceof HTMLElement) {
+				coverStatusBadge.textContent = 'Portada seleccionada';
+				coverStatusBadge.dataset.type = 'selected';
+			}
+			if (coverStatusTitle instanceof HTMLElement) coverStatusTitle.textContent = title;
+			if (coverStatusDesc instanceof HTMLElement) coverStatusDesc.textContent = 'Esta foto será la imagen representativa de la categoría.';
+			if (coverPreviewImg instanceof HTMLImageElement) coverPreviewImg.hidden = true;
+			if (coverPlaceholder instanceof HTMLElement) coverPlaceholder.hidden = false;
+			if (openCoverPickerButton instanceof HTMLButtonElement) openCoverPickerButton.textContent = 'Cambiar foto';
+			if (clearCoverButton instanceof HTMLButtonElement) clearCoverButton.hidden = false;
+		} else {
+			if (coverStatusBadge instanceof HTMLElement) {
+				coverStatusBadge.textContent = 'Sin portada seleccionada';
+				coverStatusBadge.dataset.type = 'auto';
+			}
+			if (coverStatusTitle instanceof HTMLElement) coverStatusTitle.textContent = 'Usar la primera foto automáticamente';
+			if (coverStatusDesc instanceof HTMLElement) {
+				coverStatusDesc.textContent = 'La galería pública mostrará la primera foto según el orden editorial.';
+			}
+			if (coverPreviewImg instanceof HTMLImageElement) {
+				coverPreviewImg.src = '';
+				coverPreviewImg.hidden = true;
+			}
+			if (coverPlaceholder instanceof HTMLElement) coverPlaceholder.hidden = false;
+			if (openCoverPickerButton instanceof HTMLButtonElement) openCoverPickerButton.textContent = 'Elegir foto';
+			if (clearCoverButton instanceof HTMLButtonElement) clearCoverButton.hidden = true;
+		}
+
+		if (openCoverPickerButton instanceof HTMLButtonElement) {
+			openCoverPickerButton.disabled = !coverOptionsLoaded;
+		}
+	}
+
+	function renderCoverPickerList() {
+		if (!(coverPickerList instanceof HTMLElement)) return;
+		coverPickerList.innerHTML = '';
+
+		if (!availableCategoryPhotos.length) {
+			const emptyNotice = document.createElement('p');
+			emptyNotice.className = 'picker-empty-notice';
+			emptyNotice.textContent = 'No hay fotografías publicadas en esta categoría para elegir como portada.';
+			coverPickerList.append(emptyNotice);
+			return;
+		}
+
+		const currentCoverId = coverPhotoSelect instanceof HTMLSelectElement ? coverPhotoSelect.value : '';
+
+		for (const photo of availableCategoryPhotos) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'picker-photo-card';
+			if (photo.id === currentCoverId) {
+				btn.classList.add('is-selected');
+				btn.setAttribute('aria-current', 'true');
+			}
+
+			const img = document.createElement('img');
+			img.src = photo.image;
+			img.alt = photoTitle(photo);
+			img.loading = 'lazy';
+
+			const info = document.createElement('div');
+			info.className = 'picker-photo-info';
+
+			const title = document.createElement('strong');
+			title.textContent = photoTitle(photo);
+
+			const meta = document.createElement('span');
+			meta.textContent = photo.year ? `Año ${photo.year}` : 'Sin año';
+
+			info.append(title, meta);
+
+			if (photo.id === currentCoverId) {
+				const badge = document.createElement('span');
+				badge.className = 'picker-selected-badge';
+				badge.textContent = 'Seleccionada';
+				info.append(badge);
+			}
+
+			btn.append(img, info);
+
+			btn.addEventListener('click', () => {
+				selectCoverPhoto(photo.id);
+			});
+
+			coverPickerList.append(btn);
+		}
+	}
+
+	function selectCoverPhoto(photoId) {
+		if (!(coverPhotoSelect instanceof HTMLSelectElement)) return;
+		coverPhotoSelect.value = photoId;
+		coverSelectionDirty = photoId !== originalCoverPhoto;
+		updateCoverUI();
+		if (coverPickerPanel instanceof HTMLElement) {
+			coverPickerPanel.hidden = true;
+		}
+	}
+
 	function setFormMode(category = null, clearMessage = true) {
 		if (!(form instanceof HTMLFormElement)) return;
 		form.reset();
@@ -127,6 +303,8 @@ import Layout from '../../../layouts/Layout.astro';
 		originalCoverPhoto = category?.cover_photo || '';
 		coverOptionsLoaded = false;
 		coverSelectionDirty = false;
+		availableCategoryPhotos = [];
+		if (coverPickerPanel instanceof HTMLElement) coverPickerPanel.hidden = true;
 
 		if (idInput instanceof HTMLInputElement) idInput.value = category?.id || '';
 		if (nameInput instanceof HTMLInputElement) nameInput.value = category?.name || '';
@@ -136,7 +314,7 @@ import Layout from '../../../layouts/Layout.astro';
 		if (activeInput instanceof HTMLInputElement) activeInput.checked = category ? Boolean(category.active) : true;
 		if (coverPhotoField instanceof HTMLElement) coverPhotoField.hidden = !category;
 		if (coverPhotoSelect instanceof HTMLSelectElement) {
-			coverPhotoSelect.innerHTML = '<option value="">Automática</option>';
+			coverPhotoSelect.innerHTML = '<option value="">Usar la primera foto automáticamente</option>';
 			coverPhotoSelect.value = originalCoverPhoto;
 			coverPhotoSelect.disabled = !category;
 		}
@@ -146,6 +324,8 @@ import Layout from '../../../layouts/Layout.astro';
 			coverPhotoHelp.hidden = !category;
 		}
 		if (formTitle instanceof HTMLElement) formTitle.textContent = category ? 'Editar categoría' : 'Nueva categoría';
+
+		updateCoverUI();
 
 		form.dataset.mode = category ? 'edit' : 'create';
 		if (clearMessage) setMessage('');
@@ -195,7 +375,20 @@ import Layout from '../../../layouts/Layout.astro';
 			order.textContent = category.sort_order == null ? '' : String(category.sort_order);
 
 			const cover = document.createElement('td');
-			cover.textContent = category.cover_photo ? coverPhotoTitles[category.cover_photo] || 'Portada no disponible' : 'Automática';
+			if (category.cover_photo) {
+				const pill = document.createElement('span');
+				pill.className = 'cover-pill manual';
+				const title = coverPhotoTitles[category.cover_photo] || 'Portada asignada';
+				pill.textContent = title;
+				pill.title = title;
+				cover.append(pill);
+			} else {
+				const pill = document.createElement('span');
+				pill.className = 'cover-pill auto';
+				pill.textContent = 'Automática';
+				pill.title = 'Usa la primera foto pública automáticamente';
+				cover.append(pill);
+			}
 
 			const status = document.createElement('td');
 			const pill = document.createElement('span');
@@ -252,8 +445,11 @@ import Layout from '../../../layouts/Layout.astro';
 		coverRequestId = requestId;
 		coverOptionsLoaded = false;
 		coverSelectionDirty = false;
+		availableCategoryPhotos = [];
 		coverPhotoSelect.disabled = true;
-		coverPhotoSelect.innerHTML = '<option value="">Automática</option>';
+		coverPhotoSelect.innerHTML = '<option value="">Usar la primera foto automáticamente</option>';
+		updateCoverUI();
+
 		if (coverPhotoHelp instanceof HTMLElement) {
 			coverPhotoHelp.textContent = 'Cargando opciones de portada...';
 			coverPhotoHelp.dataset.type = 'neutral';
@@ -270,7 +466,9 @@ import Layout from '../../../layouts/Layout.astro';
 			const result = await adminFetch(`/api/archivos-nava/admin/photos?${params.toString()}`);
 			if (requestId !== coverRequestId || selectedCategory?.id !== category.id) return;
 
-			for (const photo of result.items || []) {
+			availableCategoryPhotos = result.items || [];
+
+			for (const photo of availableCategoryPhotos) {
 				const option = document.createElement('option');
 				option.value = photo.id;
 				option.textContent = photoTitle(photo);
@@ -281,6 +479,9 @@ import Layout from '../../../layouts/Layout.astro';
 			coverPhotoSelect.disabled = false;
 			coverOptionsLoaded = true;
 			coverSelectionDirty = false;
+			updateCoverUI();
+			renderCoverPickerList();
+
 			if (coverPhotoHelp instanceof HTMLElement) {
 				coverPhotoHelp.textContent = '';
 				coverPhotoHelp.hidden = true;
@@ -290,8 +491,11 @@ import Layout from '../../../layouts/Layout.astro';
 			if (requestId !== coverRequestId || selectedCategory?.id !== category.id) return;
 			coverOptionsLoaded = false;
 			coverSelectionDirty = false;
+			availableCategoryPhotos = [];
 			coverPhotoSelect.value = originalCoverPhoto;
 			coverPhotoSelect.disabled = true;
+			updateCoverUI();
+
 			if (coverPhotoHelp instanceof HTMLElement) {
 				coverPhotoHelp.textContent = 'No se pudieron cargar las portadas. Podés guardar otros cambios; la portada actual no se modificará.';
 				coverPhotoHelp.dataset.type = 'error';
@@ -482,8 +686,32 @@ import Layout from '../../../layouts/Layout.astro';
 	newButton?.addEventListener('click', () => setFormMode());
 	cancelButton?.addEventListener('click', () => setFormMode());
 	coverPhotoSelect?.addEventListener('change', () => {
-		if (coverOptionsLoaded) coverSelectionDirty = true;
+		if (coverOptionsLoaded) {
+			coverSelectionDirty = true;
+			updateCoverUI();
+		}
 	});
+
+	openCoverPickerButton?.addEventListener('click', () => {
+		if (!coverOptionsLoaded) return;
+		if (coverPickerPanel instanceof HTMLElement) {
+			coverPickerPanel.hidden = !coverPickerPanel.hidden;
+			if (!coverPickerPanel.hidden) renderCoverPickerList();
+		}
+	});
+
+	closeCoverPickerButton?.addEventListener('click', () => {
+		if (coverPickerPanel instanceof HTMLElement) coverPickerPanel.hidden = true;
+	});
+
+	pickerAutoButton?.addEventListener('click', () => {
+		selectCoverPhoto('');
+	});
+
+	clearCoverButton?.addEventListener('click', () => {
+		selectCoverPhoto('');
+	});
+
 	form?.addEventListener('submit', saveCategory);
 
 	requireAdminSession().then((isValid) => {
@@ -587,6 +815,282 @@ import Layout from '../../../layouts/Layout.astro';
 
 	.cover-photo-field[hidden] {
 		display: none;
+	}
+
+	.cover-field-title {
+		font-size: 0.8rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: rgba(245, 245, 245, 0.65);
+	}
+
+	.visually-hidden {
+		position: absolute !important;
+		width: 1px !important;
+		height: 1px !important;
+		padding: 0 !important;
+		margin: -1px !important;
+		overflow: hidden !important;
+		clip: rect(0, 0, 0, 0) !important;
+		white-space: nowrap !important;
+		border: 0 !important;
+	}
+
+	.cover-preview-card {
+		display: grid;
+		grid-template-columns: 80px minmax(0, 1fr);
+		gap: 14px;
+		padding: 12px;
+		border: 1px solid rgba(255, 255, 255, 0.14);
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.03);
+		align-items: center;
+	}
+
+	.cover-card-media {
+		width: 80px;
+		height: 80px;
+		border-radius: 6px;
+		overflow: hidden;
+		background: #222;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.cover-card-media img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.cover-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		color: rgba(255, 255, 255, 0.35);
+		font-size: 1.5rem;
+	}
+
+	.cover-card-content {
+		display: grid;
+		gap: 4px;
+		min-width: 0;
+	}
+
+	.cover-status-badge {
+		display: inline-block;
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		padding: 2px 8px;
+		border-radius: 4px;
+		background: rgba(255, 255, 255, 0.08);
+		color: rgba(245, 245, 245, 0.75);
+	}
+
+	.cover-status-badge[data-type="selected"] {
+		background: rgba(184, 231, 201, 0.15);
+		color: #b8e7c9;
+	}
+
+	.cover-status-badge[data-type="auto"] {
+		background: rgba(230, 213, 184, 0.15);
+		color: #e6d5b8;
+	}
+
+	.cover-status-title {
+		margin: 2px 0 0;
+		font-size: 0.95rem;
+		font-weight: 600;
+		color: #f5f5f5;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.cover-status-desc {
+		margin: 0;
+		font-size: 0.78rem;
+		color: rgba(245, 245, 245, 0.55);
+		line-height: 1.35;
+	}
+
+	.cover-card-actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 6px;
+		flex-wrap: wrap;
+	}
+
+	.cover-card-actions button {
+		padding: 6px 10px;
+		font-size: 0.8rem;
+	}
+
+	.cover-picker-panel {
+		border: 1px solid rgba(255, 255, 255, 0.18);
+		border-radius: 8px;
+		background: #20201f;
+		padding: 14px;
+		display: grid;
+		gap: 12px;
+		margin-top: 6px;
+	}
+
+	.cover-picker-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.cover-picker-title {
+		margin: 0;
+		font-size: 0.88rem;
+		font-weight: 600;
+		color: #f5f5f5;
+	}
+
+	.close-picker-button {
+		background: transparent;
+		border: 0;
+		color: rgba(245, 245, 245, 0.7);
+		font-size: 1.2rem;
+		cursor: pointer;
+		padding: 2px 6px;
+		border-radius: 4px;
+	}
+
+	.close-picker-button:hover {
+		color: #fff;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.picker-auto-button {
+		width: 100%;
+		display: grid;
+		gap: 3px;
+		text-align: left;
+		padding: 10px 12px;
+		border: 1px dashed rgba(230, 213, 184, 0.4);
+		border-radius: 6px;
+		background: rgba(230, 213, 184, 0.05);
+		color: #e6d5b8;
+		cursor: pointer;
+	}
+
+	.picker-auto-button strong {
+		font-size: 0.86rem;
+	}
+
+	.picker-auto-button span {
+		font-size: 0.75rem;
+		color: rgba(245, 245, 245, 0.6);
+	}
+
+	.picker-auto-button:hover {
+		background: rgba(230, 213, 184, 0.12);
+	}
+
+	.cover-picker-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+		gap: 10px;
+		max-height: 240px;
+		overflow-y: auto;
+		padding-right: 4px;
+	}
+
+	.picker-photo-card {
+		display: flex;
+		flex-direction: column;
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.04);
+		overflow: hidden;
+		cursor: pointer;
+		text-align: left;
+		padding: 0;
+		transition: border-color 0.15s;
+	}
+
+	.picker-photo-card:hover {
+		border-color: rgba(230, 213, 184, 0.6);
+	}
+
+	.picker-photo-card.is-selected {
+		border-color: #b8e7c9;
+		background: rgba(184, 231, 201, 0.1);
+	}
+
+	.picker-photo-card img {
+		width: 100%;
+		height: 80px;
+		object-fit: cover;
+		background: #111;
+	}
+
+	.picker-photo-info {
+		padding: 6px 8px;
+		display: grid;
+		gap: 2px;
+	}
+
+	.picker-photo-info strong {
+		font-size: 0.78rem;
+		color: #f5f5f5;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.picker-photo-info span {
+		font-size: 0.72rem;
+		color: rgba(245, 245, 245, 0.55);
+	}
+
+	.picker-selected-badge {
+		font-size: 0.68rem;
+		font-weight: 600;
+		color: #b8e7c9;
+		margin-top: 2px;
+	}
+
+	.picker-empty-notice {
+		margin: 0;
+		padding: 12px;
+		grid-column: 1 / -1;
+		font-size: 0.82rem;
+		color: rgba(245, 245, 245, 0.6);
+		text-align: center;
+	}
+
+	.cover-pill {
+		display: inline-block;
+		font-size: 0.75rem;
+		padding: 2px 8px;
+		border-radius: 4px;
+		white-space: nowrap;
+		max-width: 180px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.cover-pill.manual {
+		background: rgba(184, 231, 201, 0.12);
+		color: #b8e7c9;
+		border: 1px solid rgba(184, 231, 201, 0.3);
+	}
+
+	.cover-pill.auto {
+		background: rgba(245, 245, 245, 0.08);
+		color: rgba(245, 245, 245, 0.7);
+		border: 1px solid rgba(255, 255, 255, 0.12);
 	}
 
 	.cover-photo-field small {
