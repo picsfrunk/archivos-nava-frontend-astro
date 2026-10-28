@@ -11,9 +11,29 @@ export type CategoryOption = {
 	isTechnical?: boolean;
 };
 
-export function redirectToLogin() {
+export function redirectToLogin(options?: { expired?: boolean; redirectUrl?: string }) {
 	pb.authStore.clear();
-	window.location.href = '/admin/login';
+	if (typeof window === 'undefined') return;
+
+	let currentPath = options?.redirectUrl;
+	if (!currentPath) {
+		const pathname = window.location.pathname;
+		const search = window.location.search;
+		if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
+			currentPath = `${pathname}${search}`;
+		}
+	}
+
+	const params = new URLSearchParams();
+	if (options?.expired) {
+		params.set('expired', '1');
+	}
+	if (currentPath) {
+		params.set('redirect', currentPath);
+	}
+
+	const query = params.toString();
+	window.location.href = query ? `/admin/login?${query}` : '/admin/login';
 }
 
 export function isAdminSession() {
@@ -30,7 +50,7 @@ export async function requireAdminSession() {
 		await pb.collection('admins').authRefresh();
 		return true;
 	} catch {
-		redirectToLogin();
+		redirectToLogin({ expired: true });
 		return false;
 	}
 }
@@ -71,7 +91,7 @@ export async function adminFetch<T>(path: string, init: RequestInit = {}): Promi
 	}
 
 	if (response.status === 401 || response.status === 403) {
-		redirectToLogin();
+		redirectToLogin({ expired: true });
 		throw { authError: true };
 	}
 

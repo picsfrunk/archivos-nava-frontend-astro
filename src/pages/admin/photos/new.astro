@@ -55,7 +55,7 @@ import Layout from '../../../layouts/Layout.astro';
 </Layout>
 
 <script>
-	import { loadActiveCategories, requireAdminSession, resolveError } from '../../../lib/admin';
+	import { loadActiveCategories, redirectToLogin, requireAdminSession, resolveError } from '../../../lib/admin';
 	import { pb, pocketbaseUrl } from '../../../lib/pocketbase';
 
 	const form = document.querySelector('#photo-form');
@@ -78,11 +78,6 @@ import Layout from '../../../layouts/Layout.astro';
 		if (!(message instanceof HTMLElement)) return;
 		message.textContent = text;
 		message.dataset.type = type;
-	}
-
-	function redirectToLogin() {
-		pb.authStore.clear();
-		window.location.href = '/admin/login';
 	}
 
 	function formatFileSize(bytes) {
@@ -159,14 +154,28 @@ import Layout from '../../../layouts/Layout.astro';
 				details.append(error);
 			}
 
+			const actionGroup = document.createElement('div');
+			actionGroup.className = 'item-actions';
+
+			if (item.status === 'error') {
+				const retryButton = document.createElement('button');
+				retryButton.type = 'button';
+				retryButton.className = 'retry-button';
+				retryButton.textContent = 'Reintentar';
+				retryButton.disabled = isUploading;
+				retryButton.addEventListener('click', () => retryItem(item.id));
+				actionGroup.append(retryButton);
+			}
+
 			const removeButton = document.createElement('button');
 			removeButton.type = 'button';
 			removeButton.className = 'remove-button';
 			removeButton.textContent = 'Quitar';
 			removeButton.disabled = isUploading || item.status === 'uploading';
 			removeButton.addEventListener('click', () => removeSelectedItem(item.id));
+			actionGroup.append(removeButton);
 
-			row.append(image, details, removeButton);
+			row.append(image, details, actionGroup);
 			selectedList.append(row);
 		}
 	}
@@ -337,6 +346,53 @@ import Layout from '../../../layouts/Layout.astro';
 		return parts.join('; ') || 'No hubo cambios.';
 	}
 
+	function buildPayloadBase(status = 'draft') {
+		if (!(form instanceof HTMLFormElement)) return null;
+
+		const data = new FormData(form);
+		const category = String(data.get('category') || '').trim();
+		if (!category) return null;
+
+		const payloadBase = new FormData();
+		payloadBase.append('category', category);
+		payloadBase.append('status', status);
+
+		for (const field of ['year', 'caption', 'description']) {
+			const value = String(data.get(field) || '').trim();
+			if (value) payloadBase.append(field, value);
+		}
+
+		const title = String(data.get('title') || '').trim();
+		if (selectedItems.length === 1 && title) payloadBase.append('title', title);
+
+		return payloadBase;
+	}
+
+	async function retryItem(id) {
+		if (isUploading) return;
+		const item = selectedItems.find((selectedItem) => selectedItem.id === id);
+		if (!item || item.status !== 'error') return;
+
+		const payloadBase = buildPayloadBase('draft');
+		if (!payloadBase) {
+			setMessage('Seleccioná una categoría antes de reintentar la subida.', 'error');
+			return;
+		}
+
+		isUploading = true;
+		renderSelectedList();
+		setMessage(`Reintentando subida de "${item.file.name}"...`);
+
+		try {
+			await runLimitedUploads([item], payloadBase);
+			const hasErrors = selectedItems.some((it) => it.status === 'error');
+			setMessage(`${summarizeUpload()}${hasErrors ? '. Podés reintentar las fotos con error.' : '.'}`, hasErrors ? 'error' : 'success');
+		} finally {
+			isUploading = false;
+			renderSelectedList();
+		}
+	}
+
 	async function createPhotos(status, submitButton) {
 		if (!(form instanceof HTMLFormElement)) return;
 
@@ -354,22 +410,11 @@ import Layout from '../../../layouts/Layout.astro';
 			return;
 		}
 
-		if (!category) {
+		const payloadBase = buildPayloadBase(status);
+		if (!payloadBase) {
 			setMessage('Seleccioná una categoría.', 'error');
 			return;
 		}
-
-		const payloadBase = new FormData();
-		payloadBase.append('category', category);
-		payloadBase.append('status', status);
-
-		for (const field of ['year', 'caption', 'description']) {
-			const value = String(data.get(field) || '').trim();
-			if (value) payloadBase.append(field, value);
-		}
-
-		const title = String(data.get('title') || '').trim();
-		if (selectedItems.length === 1 && title) payloadBase.append('title', title);
 
 		isUploading = true;
 		if (submitButton instanceof HTMLButtonElement) {
@@ -597,6 +642,26 @@ import Layout from '../../../layouts/Layout.astro';
 		gap: 12px;
 	}
 
+	:global(.item-actions) {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	:global(.retry-button) {
+		border: 1px solid rgba(230, 213, 184, 0.4);
+		padding: 9px 10px;
+		color: #e6d5b8;
+		background: rgba(230, 213, 184, 0.08);
+		font-size: 0.78rem;
+		border-radius: 4px;
+		cursor: pointer;
+	}
+
+	:global(.retry-button:hover:not(:disabled)) {
+		background: rgba(230, 213, 184, 0.16);
+	}
+
 	:global(.remove-button) {
 		border: 1px solid rgba(255, 255, 255, 0.18);
 		padding: 9px 10px;
@@ -634,8 +699,14 @@ import Layout from '../../../layouts/Layout.astro';
 			height: 48px;
 		}
 
-		:global(.remove-button) {
+		:global(.item-actions) {
 			grid-column: 1 / -1;
+			justify-content: flex-end;
+		}
+
+		:global(.remove-button),
+		:global(.retry-button) {
+			width: auto;
 		}
 	}
 </style>
