@@ -22,56 +22,89 @@ const meta = [
 ---
 
 <a class="photo-card" href={`/photo/${photo.id}`} aria-label={label}>
-	<img
-		src={thumbnailUrl(photo.image)}
-		alt={photoAlt(photo)}
-		loading="lazy"
-		width="720"
-		height="540"
-	/>
+	<div class="photo-card-media">
+		<img
+			src={thumbnailUrl(photo.image)}
+			alt={photoAlt(photo)}
+			loading="lazy"
+			width="720"
+			height="540"
+		/>
+	</div>
 	<span class="photo-card-body">
 		<span class="photo-title">{label}</span>
-		{meta.length > 0 && <span class="photo-meta">{meta.join(' / ')}</span>}
+		{meta.length > 0 && <span class="photo-meta">{meta.join(' · ')}</span>}
 	</span>
 </a>
 
 <style>
 	.photo-card {
-		display: grid;
-		gap: 12px;
+		display: flex;
+		flex-direction: column;
 		min-width: 0;
+		padding: 10px;
+		border: 1px solid var(--border-subtle);
+		border-radius: 6px;
+		background: var(--surface-card);
+		transition:
+			border-color 200ms ease,
+			box-shadow 200ms ease,
+			transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
-	.photo-card img {
-		width: 100%;
-		aspect-ratio: 4 / 3;
-		object-fit: cover;
+	.photo-card:hover {
+		border-color: var(--accent);
+		transform: translateY(-2px);
+		box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+	}
+
+	.photo-card-media {
+		overflow: hidden;
+		border-radius: 4px;
 		background: var(--surface);
 	}
 
+	.photo-card img {
+		display: block;
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		object-fit: cover;
+		transition: transform 300ms ease;
+	}
+
+	.photo-card:hover img {
+		transform: scale(1.015);
+	}
+
 	.photo-card-body {
-		display: grid;
-		gap: 4px;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 10px 4px 4px;
 		min-width: 0;
 	}
 
-	.photo-title,
+	.photo-title {
+		font-family: var(--font-serif);
+		font-size: 1.05rem;
+		font-weight: 500;
+		color: var(--text);
+		line-height: 1.35;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
+
 	.photo-meta {
+		font-family: var(--font-sans);
+		color: var(--text-secondary);
+		font-size: 0.76rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	.photo-title {
-		color: var(--text);
-		font-size: 0.96rem;
-		line-height: 1.35;
-	}
-
-	.photo-meta {
-		color: var(--text-secondary);
-		font-size: 0.78rem;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
 	}
 </style>
