@@ -23,15 +23,21 @@ const categories = await getPublicCategories();
 				<section class="category-grid" aria-label="Categorías con fotografías publicadas">
 					{categories.map((category) => (
 						<a class="category-card" href={`/gallery/${category.slug}`}>
-							{category.coverPhoto && (
-								<img
-									src={thumbnailUrl(category.coverPhoto.image)}
-									alt={photoAlt(category.coverPhoto)}
-									loading="lazy"
-									width="720"
-									height="540"
-								/>
-							)}
+							<div class="category-media">
+								{category.coverPhoto ? (
+									<img
+										src={thumbnailUrl(category.coverPhoto.image)}
+										alt={photoAlt(category.coverPhoto)}
+										loading="lazy"
+										width="720"
+										height="540"
+									/>
+								) : (
+									<div class="category-placeholder">
+										<span>Sin portada</span>
+									</div>
+								)}
+							</div>
 							<span class="category-body">
 								<span class="category-title">{category.name}</span>
 								{category.description && <span class="category-description">{category.description}</span>}
@@ -52,6 +58,9 @@ const categories = await getPublicCategories();
 <style>
 	.gallery-page {
 		padding: clamp(40px, 6vw, 72px) clamp(18px, 5vw, 72px) 80px;
+		max-width: 1440px;
+		margin: 0 auto;
+		box-sizing: border-box;
 	}
 
 	.page-heading {
@@ -61,6 +70,7 @@ const categories = await getPublicCategories();
 	.page-heading p {
 		margin: 0 0 12px;
 		color: var(--text-secondary);
+		font-family: var(--font-sans);
 		font-size: 0.78rem;
 		letter-spacing: 0.16em;
 		text-transform: uppercase;
@@ -69,52 +79,109 @@ const categories = await getPublicCategories();
 	h1 {
 		margin: 0;
 		font-size: clamp(2.3rem, 5vw, 4.8rem);
+		font-family: var(--font-serif);
 		font-weight: 560;
 		line-height: 1;
+		letter-spacing: -0.01em;
 	}
 
 	.category-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-		gap: 28px;
+		gap: 32px;
 	}
 
 	.category-card {
-		display: grid;
-		gap: 14px;
+		display: flex;
+		flex-direction: column;
 		min-width: 0;
+		padding: 12px;
+		border: 1px solid var(--border-subtle);
+		background: var(--surface-card);
+		text-decoration: none;
+		transition:
+			border-color 200ms ease,
+			box-shadow 200ms ease,
+			transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
-	.category-card img {
+	.category-card:hover {
+		border-color: var(--accent);
+		transform: translateY(-2px);
+		box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+	}
+
+	.category-media {
+		position: relative;
+		overflow: hidden;
+		aspect-ratio: 4 / 3;
+		background: var(--surface);
+		border-bottom: 1px solid var(--border-subtle);
+	}
+
+	.category-media img {
 		width: 100%;
+		height: 100%;
 		aspect-ratio: 4 / 3;
 		object-fit: cover;
+		display: block;
+		transition: transform 300ms ease;
+	}
+
+	.category-card:hover .category-media img {
+		transform: scale(1.02);
+	}
+
+	.category-placeholder {
+		display: grid;
+		place-items: center;
+		width: 100%;
+		height: 100%;
 		background: var(--surface);
+		color: var(--text-secondary);
+		font-family: var(--font-sans);
+		font-size: 0.78rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.category-body {
-		display: grid;
-		gap: 7px;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding-top: 14px;
 	}
 
 	.category-title {
 		color: var(--text);
-		font-size: 1.08rem;
+		font-family: var(--font-serif);
+		font-size: 1.25rem;
 		font-weight: 560;
-		line-height: 1.3;
+		line-height: 1.25;
 	}
 
-	.category-description,
-	.category-count,
-	.empty-state {
+	.category-description {
 		color: var(--text-secondary);
-		font-size: 0.92rem;
-		line-height: 1.55;
+		font-size: 0.88rem;
+		line-height: 1.5;
 	}
 
 	.category-count {
-		font-size: 0.78rem;
-		letter-spacing: 0.06em;
+		margin-top: auto;
+		color: var(--text-secondary);
+		font-family: var(--font-sans);
+		font-size: 0.74rem;
+		font-weight: 600;
+		letter-spacing: 0.1em;
 		text-transform: uppercase;
+	}
+
+	.empty-state {
+		padding: 48px 24px;
+		border: 1px dashed var(--border);
+		background: var(--surface);
+		text-align: center;
+		color: var(--text-secondary);
+		font-size: 0.95rem;
 	}
 </style>

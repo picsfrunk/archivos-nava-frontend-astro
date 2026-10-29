@@ -46,35 +46,59 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 			</nav>
 
 			<article class="photo-detail">
-				<figure>
+				<figure class="photo-mount">
 					<button class="image-button" type="button" data-open-lightbox aria-label="Ver fotografía grande">
 						<img src={previewUrl(photo.image)} alt={photoAlt(photo)} />
+						<span class="zoom-badge" aria-hidden="true">🔍 Ampliar</span>
 					</button>
 				</figure>
 
 				<section class="photo-info" aria-labelledby="photo-title">
-					<h1 id="photo-title">{title}</h1>
+					<div class="info-header">
+						<span class="info-eyebrow">Ficha de catalogación</span>
+						<h1 id="photo-title">{title}</h1>
+					</div>
+
+					<dl class="catalog-metadata">
+						{photo.year && (
+							<div class="metadata-row">
+								<dt>Año</dt>
+								<dd class="year-val">{displayYear(photo.year)}</dd>
+							</div>
+						)}
+						{category && (
+							<div class="metadata-row">
+								<dt>Categoría</dt>
+								<dd><a class="category-link" href={`/gallery/${category.slug}`}>{category.name}</a></dd>
+							</div>
+						)}
+						<div class="metadata-row">
+							<dt>Referencia</dt>
+							<dd class="ref-id">#{photo.id}</dd>
+						</div>
+					</dl>
+
 					{meta.length > 0 && <p class="meta">{meta.join(' / ')}</p>}
 					{photo.caption && <p class="caption">{photo.caption}</p>}
 					{photo.description && <p class="description">{photo.description}</p>}
 
 					<div class="actions">
-						{category && <a href={`/gallery/${category.slug}`}>Volver a {category.name}</a>}
-						<button type="button" data-open-lightbox>Ver grande</button>
-						<a href={downloadUrl(photo.image)} download>Descargar</a>
+						{category && <a class="action-btn back-btn" href={`/gallery/${category.slug}`}>Volver a {category.name}</a>}
+						<button class="action-btn view-btn" type="button" data-open-lightbox>Ver grande</button>
+						<a class="action-btn download-btn" href={downloadUrl(photo.image)} download>Descargar</a>
 					</div>
 
 					{(navigation.previous || navigation.next) && (
 						<nav class="photo-navigation" aria-label="Fotografías de la misma categoría">
 							{navigation.previous && (
 								<a class="previous" href={`/photo/${navigation.previous.id}`} aria-label={`Anterior: ${previousLabel}`}>
-									<span>Anterior</span>
+									<span>← Anterior</span>
 									<strong>{previousLabel}</strong>
 								</a>
 							)}
 							{navigation.next && (
 								<a class="next" href={`/photo/${navigation.next.id}`} aria-label={`Siguiente: ${nextLabel}`}>
-									<span>Siguiente</span>
+									<span>Siguiente →</span>
 									<strong>{nextLabel}</strong>
 								</a>
 							)}
@@ -164,23 +188,30 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 
 	.photo-detail {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+		grid-template-columns: minmax(0, 1.35fr) minmax(290px, 1fr);
 		align-items: start;
 		gap: clamp(28px, 5vw, 64px);
 	}
 
-	figure {
+	.photo-mount {
+		position: relative;
 		display: grid;
 		place-items: center;
-		min-height: 320px;
+		min-height: 340px;
 		margin: 0;
+		padding: clamp(12px, 2.5vw, 24px);
 		background: var(--surface);
+		border: 1px solid var(--border);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.image-button {
+		position: relative;
 		display: grid;
+		place-items: center;
 		width: 100%;
 		padding: 0;
+		border: 0;
 		color: inherit;
 		background: transparent;
 		cursor: zoom-in;
@@ -195,23 +226,109 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 		outline-offset: 4px;
 	}
 
-	figure img {
+	.photo-mount img {
 		width: 100%;
 		max-height: calc(100vh - 180px);
 		object-fit: contain;
+		display: block;
+	}
+
+	.zoom-badge {
+		position: absolute;
+		right: 10px;
+		bottom: 10px;
+		padding: 5px 10px;
+		background: rgba(18, 16, 14, 0.82);
+		color: #f7f6f2;
+		font-family: var(--font-sans);
+		font-size: 0.72rem;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		opacity: 0.85;
+		transition: opacity 0.2s ease, transform 0.2s ease;
+		pointer-events: none;
+	}
+
+	.image-button:hover .zoom-badge,
+	.image-button:focus-visible .zoom-badge {
+		opacity: 1;
+		transform: translateY(-2px);
 	}
 
 	.photo-info {
 		display: grid;
-		gap: 16px;
+		gap: 20px;
 		padding-top: 4px;
+	}
+
+	.info-header {
+		display: grid;
+		gap: 6px;
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 14px;
+	}
+
+	.info-eyebrow {
+		font-family: var(--font-sans);
+		font-size: 0.72rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--text-secondary);
 	}
 
 	h1 {
 		margin: 0;
-		font-size: clamp(1.8rem, 3vw, 3rem);
+		font-size: clamp(1.8rem, 3vw, 2.75rem);
 		font-weight: 560;
-		line-height: 1.08;
+		line-height: 1.1;
+		letter-spacing: -0.01em;
+	}
+
+	.catalog-metadata {
+		display: grid;
+		gap: 10px;
+		margin: 0;
+		padding: 12px 14px;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		font-family: var(--font-sans);
+		font-size: 0.82rem;
+	}
+
+	.metadata-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 16px;
+	}
+
+	.metadata-row dt {
+		color: var(--text-secondary);
+		font-size: 0.74rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.metadata-row dd {
+		margin: 0;
+		font-weight: 500;
+		color: var(--text);
+		text-align: right;
+	}
+
+	.category-link {
+		color: var(--text);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.ref-id {
+		font-family: var(--font-mono);
+		font-size: 0.76rem;
+		color: var(--text-secondary);
 	}
 
 	.meta,
@@ -230,7 +347,9 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 	}
 
 	.caption {
-		font-size: 1.02rem;
+		font-size: 1.05rem;
+		color: var(--text);
+		line-height: 1.5;
 	}
 
 	.description {
@@ -240,27 +359,50 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 14px;
+		gap: 10px;
 		margin-top: 10px;
 	}
 
-	.actions a,
-	.actions button {
-		border-bottom: 1px solid var(--text-secondary);
-		padding-bottom: 5px;
+	.action-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 8px 16px;
+		border: 1px solid var(--border);
+		background: var(--surface);
 		color: var(--text);
-		background: transparent;
-		font-size: 0.86rem;
-		letter-spacing: 0.06em;
+		font-family: var(--font-sans);
+		font-size: 0.76rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
 		text-transform: uppercase;
+		text-decoration: none;
 		cursor: pointer;
+		transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+	}
+
+	.action-btn:hover {
+		border-color: var(--text);
+		background: var(--surface-hover);
+	}
+
+	.action-btn.view-btn {
+		background: var(--text);
+		color: var(--bg);
+		border-color: var(--text);
+	}
+
+	.action-btn.view-btn:hover {
+		opacity: 0.9;
 	}
 
 	.photo-navigation {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 12px;
-		margin-top: 20px;
+		margin-top: 16px;
+		border-top: 1px solid var(--border);
+		padding-top: 20px;
 	}
 
 	.photo-navigation a {
@@ -268,9 +410,17 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 		gap: 5px;
 		min-height: 82px;
 		border: 1px solid var(--border);
-		padding: 14px;
+		padding: 14px 16px;
 		align-content: center;
 		background: var(--surface);
+		text-decoration: none;
+		transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+	}
+
+	.photo-navigation a:hover {
+		border-color: var(--text-secondary);
+		background: var(--surface-hover);
+		transform: translateY(-1px);
 	}
 
 	.photo-navigation .next {
@@ -296,8 +446,8 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 	}
 
 	.lightbox {
-        --text: #f5f5f5;
-        --border: #777;
+		--text: #f5f5f5;
+		--border: #777;
 		width: min(96vw, 1800px);
 		max-width: none;
 		max-height: 96vh;
@@ -308,7 +458,7 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 	}
 
 	.lightbox::backdrop {
-		background: rgba(0, 0, 0, 0.84);
+		background: rgba(0, 0, 0, 0.88);
 	}
 
 	.lightbox img {
@@ -333,7 +483,7 @@ const nextLabel = navigation.next ? photoLabel(navigation.next) : '';
 			grid-template-columns: 1fr;
 		}
 
-		figure img {
+		.photo-mount img {
 			max-height: 68vh;
 		}
 

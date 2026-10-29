@@ -39,7 +39,10 @@ function pageUrl(next: number) {
 <Layout title={`Buscar | ${settings.site_name}`} description="Buscá fotografías por título, descripción, categoría o año.">
     <PublicShell items={[{ href: '/', label: 'Inicio' }, { href: '/gallery', label: 'Galería' }]}>
         <main>
-            <h1>Buscar fotografías</h1>
+            <div class="page-header">
+                <p class="page-eyebrow">Catálogo & Archivo</p>
+                <h1>Buscar fotografías</h1>
+            </div>
             <form action="/search" method="get" role="search">
                 <label class="search-text">Buscar<input type="search" name="search" value={search} maxlength="200" placeholder="Título, descripción o pie de foto…" /></label>
                 <label>Categoría<select name="category"><option value="">Todas</option>{categories.map(item => <option value={item.id} selected={item.id === category}>{item.name}</option>)}</select></label>
@@ -50,7 +53,7 @@ function pageUrl(next: number) {
             {error ? <p role="alert">{error}</p> : <>
                 <p role="status">{result.totalItems} fotografías encontradas</p>
                 {result.items.length ? <section class="photo-grid" aria-label="Resultados de búsqueda">{result.items.map(photo => <PhotoCard photo={photo} />)}</section>
-                    : <p>{search || category || year ? 'Ninguna fotografía coincide con los filtros.' : 'Todavía no hay fotografías publicadas.'}</p>}
+                    : <p class="empty-notice">{search || category || year ? 'Ninguna fotografía coincide con los filtros.' : 'Todavía no hay fotografías publicadas.'}</p>}
                 <nav class="pager" aria-label="Páginas de resultados">
                     {page > 1 && <a href={pageUrl(page - 1)}>Anterior</a>}
                     <span>Página {page}{result.totalPages > 0 ? ` de ${result.totalPages}` : ''}</span>
@@ -61,18 +64,203 @@ function pageUrl(next: number) {
     </PublicShell>
 </Layout>
 <style>
-    main { padding: clamp(24px, 5vw, 64px); }
-    h1 { font-size: clamp(2rem, 4vw, 3.5rem); }
-    form { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; margin: 28px 0; }
-    label { display: grid; gap: 8px; max-width: 100%; }
-    .search-text { flex: 1 1 280px; }
-    input, select, button { min-height: 44px; min-width: 0; max-width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 4px; font: inherit; }
-    input[name="year"] { width: 110px; }
-    button { cursor: pointer; }
-    form > a { padding-block: 12px; }
-    :global(.photo-grid .photo-card img) { height: auto; }
-    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 24px; }
-    .pager { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: center; margin-top: 36px; }
-    .pager a { padding: 12px; border: 1px solid var(--border); }
-    @media (max-width: 560px) { form { flex-direction: column; align-items: stretch; } .search-text { flex-basis: auto; } }
+	main {
+		padding: clamp(32px, 5vw, 64px) clamp(18px, 5vw, 72px) 80px;
+		max-width: 1440px;
+		margin: 0 auto;
+		box-sizing: border-box;
+	}
+
+	.page-header {
+		margin-bottom: clamp(24px, 4vw, 40px);
+	}
+
+	.page-eyebrow {
+		margin: 0 0 10px;
+		color: var(--text-secondary);
+		font-size: 0.76rem;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		font-family: var(--font-sans);
+	}
+
+	h1 {
+		margin: 0;
+		font-size: clamp(2.2rem, 4.5vw, 4rem);
+		font-family: var(--font-serif);
+		font-weight: 560;
+		line-height: 1.08;
+		letter-spacing: -0.01em;
+	}
+
+	form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		align-items: flex-end;
+		margin: 32px 0;
+		padding: 20px 24px;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		box-sizing: border-box;
+	}
+
+	label {
+		display: grid;
+		gap: 8px;
+		max-width: 100%;
+		font-family: var(--font-sans);
+		font-size: 0.76rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-secondary);
+	}
+
+	.search-text {
+		flex: 1 1 280px;
+	}
+
+	input, select, button {
+		min-height: 44px;
+		min-width: 0;
+		max-width: 100%;
+		padding: 10px 14px;
+		border: 1px solid var(--border);
+		background: var(--bg);
+		color: var(--text);
+		font-family: var(--font-sans);
+		font-size: 0.9rem;
+		box-sizing: border-box;
+		transition: border-color 0.15s ease;
+	}
+
+	input:focus, select:focus {
+		border-color: var(--accent);
+		outline: 1px solid var(--accent);
+	}
+
+	input[name="year"] {
+		width: 110px;
+	}
+
+	button {
+		padding: 10px 22px;
+		background: var(--text);
+		color: var(--bg);
+		border: 1px solid var(--text);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		font-size: 0.8rem;
+		cursor: pointer;
+		transition: opacity 0.15s ease, transform 0.15s ease;
+	}
+
+	button:hover {
+		opacity: 0.88;
+	}
+
+	form > a {
+		padding-block: 12px;
+		color: var(--text-secondary);
+		font-size: 0.82rem;
+		letter-spacing: 0.04em;
+		text-decoration: underline;
+		text-underline-offset: 4px;
+		transition: color 0.15s ease;
+	}
+
+	form > a:hover {
+		color: var(--text);
+	}
+
+	[role="status"] {
+		margin: 0 0 24px;
+		color: var(--text-secondary);
+		font-family: var(--font-sans);
+		font-size: 0.82rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	[role="alert"] {
+		padding: 16px 20px;
+		background: var(--surface);
+		border-left: 3px solid #d9534f;
+		color: var(--text);
+		font-size: 0.92rem;
+		margin: 24px 0;
+	}
+
+	.empty-notice {
+		padding: 48px 24px;
+		border: 1px dashed var(--border);
+		background: var(--surface);
+		text-align: center;
+		color: var(--text-secondary);
+		font-size: 0.95rem;
+		margin: 24px 0;
+	}
+
+	:global(.photo-grid .photo-card img) {
+		height: auto;
+	}
+
+	.photo-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+		gap: 28px;
+	}
+
+	.pager {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		align-items: center;
+		justify-content: center;
+		margin-top: 48px;
+		font-family: var(--font-sans);
+		font-size: 0.86rem;
+	}
+
+	.pager a {
+		padding: 10px 18px;
+		border: 1px solid var(--border);
+		background: var(--surface);
+		color: var(--text);
+		text-decoration: none;
+		letter-spacing: 0.04em;
+		transition: border-color 0.15s ease, background 0.15s ease;
+	}
+
+	.pager a:hover {
+		border-color: var(--text);
+		background: var(--surface-hover);
+	}
+
+	.pager span {
+		color: var(--text-secondary);
+		font-size: 0.84rem;
+	}
+
+	@media (max-width: 680px) {
+		form {
+			flex-direction: column;
+			align-items: stretch;
+			padding: 16px;
+		}
+
+		.search-text {
+			flex-basis: auto;
+		}
+
+		input[name="year"] {
+			width: 100%;
+		}
+
+		button {
+			width: 100%;
+		}
+	}
 </style>

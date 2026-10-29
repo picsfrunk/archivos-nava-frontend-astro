@@ -29,6 +29,18 @@ En `/admin/photos`:
 - El área de avisos se consolida en un banner de estado (`#admin-message-banner`) accesible (`role="status"`, `aria-live="polite"`), estilizado con bordes y contrastes específicos para estados de éxito, error y neutro.
 - Incluye un botón para descartar el aviso de forma manual, conservando el texto exacto requerido por los contratos de prueba automatizada.
 
+## Carga múltiple con títulos individuales y herramientas de lote
+
+En `/admin/photos/new`:
+
+- **Títulos individuales por fotografía**: Cada foto en la lista de subida cuenta con un campo de texto editable propio para ingresar o modificar su título individual antes de subirla.
+- **Sugerencia inteligente**: Se sugiere automáticamente como guía (*placeholder*) una versión formateada y limpia del nombre del archivo (ej. `valv_tanque.jpg` -> `Valv tanque`).
+- **Título base común para el lote**: El campo de título general a la derecha nunca se bloquea. Al subir dos o más fotos, permite ingresar un título base y aplicarlo a todas las fotos del lote con un solo clic mediante el botón **"Aplicar este título a todas las fotos seleccionadas"**.
+- **Jerarquía y prioridad de metadatos**: Al subir, el título individual de la tarjeta tiene prioridad sobre el título general. Si una foto no tiene título individual, hereda el título base del lote; si ambos quedan vacíos, se crea como foto sin título respetando el modelo opcional.
+- **Barra de control de selección**: Encima de la lista de fotos se incorporaron controles rápidos para **"+ Agregar más fotos"** (acumulativo, sin perder las fotos ya elegidas) y **"Quitar todas"** con confirmación.
+- **Validaciones en lenguaje natural**: Si se intenta guardar sin categoría, el campo se enfoca automáticamente y se resalta con borde de advertencia; de igual modo si se intenta guardar sin fotos seleccionadas.
+- **Feedback y acciones posteriores**: Tras una subida exitosa, se exhibe un banner verde claro con accesos directos para ir a **"Ver fotos en el archivo →"** o pulsar **"Subir más fotos"** (que resetea el formulario conservando la categoría activa).
+
 ## Carga múltiple y reintento individual
 
 En `/admin/photos/new`:
