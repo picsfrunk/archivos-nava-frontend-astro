@@ -29,17 +29,20 @@ En `/admin/photos`:
 - El área de avisos se consolida en un banner de estado (`#admin-message-banner`) accesible (`role="status"`, `aria-live="polite"`), estilizado con bordes y contrastes específicos para estados de éxito, error y neutro.
 - Incluye un botón para descartar el aviso de forma manual, conservando el texto exacto requerido por los contratos de prueba automatizada.
 
-## Carga múltiple con títulos individuales y herramientas de lote
+## Carga múltiple con tarjetas editoriales amplias y títulos individuales
 
 En `/admin/photos/new`:
 
-- **Títulos individuales por fotografía**: Cada foto en la lista de subida cuenta con un campo de texto editable propio para ingresar o modificar su título individual antes de subirla.
-- **Sugerencia inteligente**: Se sugiere automáticamente como guía (*placeholder*) una versión formateada y limpia del nombre del archivo (ej. `valv_tanque.jpg` -> `Valv tanque`).
-- **Título base común para el lote**: El campo de título general a la derecha nunca se bloquea. Al subir dos o más fotos, permite ingresar un título base y aplicarlo a todas las fotos del lote con un solo clic mediante el botón **"Aplicar este título a todas las fotos seleccionadas"**.
-- **Jerarquía y prioridad de metadatos**: Al subir, el título individual de la tarjeta tiene prioridad sobre el título general. Si una foto no tiene título individual, hereda el título base del lote; si ambos quedan vacíos, se crea como foto sin título respetando el modelo opcional.
-- **Barra de control de selección**: Encima de la lista de fotos se incorporaron controles rápidos para **"+ Agregar más fotos"** (acumulativo, sin perder las fotos ya elegidas) y **"Quitar todas"** con confirmación.
-- **Validaciones en lenguaje natural**: Si se intenta guardar sin categoría, el campo se enfoca automáticamente y se resalta con borde de advertencia; de igual modo si se intenta guardar sin fotos seleccionadas.
-- **Feedback y acciones posteriores**: Tras una subida exitosa, se exhibe un banner verde claro con accesos directos para ir a **"Ver fotos en el archivo →"** o pulsar **"Subir más fotos"** (que resetea el formulario conservando la categoría activa).
+- **Dropzone auto-compactable**:
+  - Estado inicial vacío: muestra un cuadro de arrastre amplio y claro con botón *"Seleccionar imágenes"*.
+  - Estado con fotografías seleccionadas: se transforma automáticamente en una barra delgada y estilizada (~60px) para seguir arrastrando o sumando más fotos sin robar espacio vertical. Se elimina la vista previa redundante del dropzone.
+- **Tarjetas editoriales con vista previa amplia (170×128 px)**:
+  - Cada fotografía seleccionada pasa a ser una tarjeta completa y espaciosa con su número de orden (`#1`, `#2`, etc.), marco fotográfico nítido y botón de inspección/zoom ampliado al hacer clic.
+  - Permite al usuario reconocer claramente a las personas, lugares y detalles de cada toma para escribir el título adecuado sin forzar la vista.
+- **Títulos individuales por fotografía**: Cada foto cuenta con un campo de texto propio de 0.94rem con alto contraste, sugerencia automática del nombre de archivo limpio y sincronización fluida.
+- **Herramientas de lote**: El panel derecho de datos comunes (Categoría, Año, Descripción) se mantiene estático (*sticky*) en pantallas de escritorio. Cuenta con el botón **"Aplicar este título a todas las fotos seleccionadas"** para nombrar eventos enteros en un clic.
+- **Escalabilidad para 10+ fotos**: La lista de tarjetas cuenta con scroll vertical independiente estilizado (`max-height: calc(100vh - 300px)`), manteniendo fijos tanto los datos del lote como la barra de control superior (*"+ Agregar más fotos"*, *"Quitar todas"*).
+- **Inspección en alta resolución (`<dialog>`)**: Al hacer clic en cualquier imagen o en su botón *"Ver grande"*, se despliega un visor modal que exhibe la fotografía en tamaño amplio antes de subirla.
 
 ## Carga múltiple y reintento individual
 
