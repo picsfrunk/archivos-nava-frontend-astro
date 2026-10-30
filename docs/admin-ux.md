@@ -51,6 +51,16 @@ En `/admin/photos/new`:
 - Cada fotografía que experimente un fallo durante la carga a Cloudinary/servidor ahora ofrece un botón de acción **Reintentar** en su fila de la lista.
 - Permite reintentar la subida del archivo individual sin necesidad de volver a seleccionar las imágenes ni reiniciar todo el lote.
 
+## Administración avanzada (Owner) y métricas de almacenamiento
+
+En `/admin/advanced/*`:
+
+- Se implementa el componente de sub-navegación tabulada `OwnerNav.astro` con tres áreas dedicadas:
+  - **Identidad del sitio** (`/admin/advanced/settings`): Configuración pública del nombre, descripción, tema por defecto y carga/reemplazo de logotipo.
+  - **Nube y Almacenamiento** (`/admin/advanced/system`): Visualización en tiempo real del uso de Cloudinary (bytes consumidos, cantidad de objetos/fotos remotas, tráfico de ancho de banda mensual, transformaciones generadas y porcentaje de créditos consumidos del plan). Además expone el resumen de base de datos local (fotos totales por estado y categorías activas).
+  - **Copias de seguridad** (`/admin/advanced/backups`): Panel administrativo para consultar copias de seguridad locales de SQLite, generar respaldos transaccionales bajo demanda (`POST`), descargar archivos comprimidos (`.zip`) de forma segura en el navegador con autenticación Bearer, y eliminar copias antiguas con confirmación.
+- Restringido estrictamente al rol `owner` de la colección `admins`.
+
 ## Validación
 
 ```sh

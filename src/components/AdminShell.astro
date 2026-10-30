@@ -2,10 +2,11 @@
 interface Props {
 	title: string;
 	eyebrow?: string;
-	active?: 'photos' | 'new' | 'categories' | 'settings';
+	active?: 'photos' | 'new' | 'categories' | 'settings' | 'system' | 'backups';
 }
 
 const { title, eyebrow = 'Panel administrativo', active = 'photos' } = Astro.props;
+const isAdvancedActive = ['settings', 'system', 'backups'].includes(active);
 ---
 
 <main class="admin-shell">
@@ -25,7 +26,7 @@ const { title, eyebrow = 'Panel administrativo', active = 'photos' } = Astro.pro
 			<a href="/admin/categories" aria-current={active === 'categories' ? 'page' : undefined}>
 				Categorías
 			</a>
-			<a href="/admin/advanced/settings" id="owner-settings-link" hidden aria-current={active === 'settings' ? 'page' : undefined}>Configuración del sitio</a>
+			<a href="/admin/advanced/settings" id="owner-settings-link" hidden aria-current={isAdvancedActive ? 'page' : undefined}>Configuración</a>
 			<button id="logout-button" type="button">Salir</button>
 		</nav>
 	</header>

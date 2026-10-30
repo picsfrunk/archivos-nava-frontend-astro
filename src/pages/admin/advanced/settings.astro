@@ -1,9 +1,11 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import AdminShell from '../../../components/AdminShell.astro';
+import OwnerNav from '../../../components/OwnerNav.astro';
 ---
 <Layout title="Configuración del sitio">
     <AdminShell title="Configuración del sitio" active="settings" eyebrow="Configuración avanzada">
+        <OwnerNav active="settings" />
         <p class="settings-intro">Estos cambios modifican la identidad pública del archivo.</p>
         <p id="settings-status" role="status" aria-live="polite">Comprobando acceso…</p>
         <button id="retry-settings" class="secondary-button" type="button" hidden>Volver a cargar</button>

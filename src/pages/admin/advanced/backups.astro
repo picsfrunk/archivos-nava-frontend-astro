@@ -1,0 +1,394 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import AdminShell from '../../../components/AdminShell.astro';
+import OwnerNav from '../../../components/OwnerNav.astro';
+---
+
+<Layout title="Copias de seguridad">
+	<AdminShell title="Copias de seguridad" active="backups" eyebrow="Configuración avanzada">
+		<OwnerNav active="backups" />
+
+		<p class="backups-intro">
+			Gestión de respaldos transaccionales de la base de datos SQLite (metadatos, categorías, configuración y cuentas).
+		</p>
+
+		<p id="backups-status" role="status" aria-live="polite">Comprobando copias de seguridad…</p>
+		<button id="retry-backups" class="secondary-button" type="button" hidden>Volver a cargar</button>
+
+		<div id="backups-content" hidden>
+			<!-- Backup Actions Card -->
+			<section class="backups-card" aria-labelledby="create-heading">
+				<div class="card-header">
+					<div>
+						<h2 id="create-heading">Generar Nueva Copia</h2>
+						<p class="card-subtitle">
+							Genera un snapshot transaccional SQLite comprimido en formato .zip sin detener la aplicación.
+						</p>
+					</div>
+					<button id="create-backup-btn" type="button" class="primary-button">
+						Crear copia ahora
+					</button>
+				</div>
+				<p class="field-help">
+					PocketBase además ejecuta un respaldo automático diario a las 03:00 UTC con una retención rotativa de 7 archivos.
+				</p>
+			</section>
+
+			<!-- Backups List Card -->
+			<section class="backups-card" aria-labelledby="list-heading">
+				<div class="card-header">
+					<div>
+						<h2 id="list-heading">Copias Almacenadas en el Servidor</h2>
+						<p class="card-subtitle" id="backups-count-text">0 copias disponibles</p>
+					</div>
+					<button id="refresh-backups-btn" type="button" class="secondary-button">
+						Refrescar lista
+					</button>
+				</div>
+
+				<div id="empty-backups" class="empty-state" hidden>
+					<p>No hay copias de seguridad generadas todavía.</p>
+					<p class="field-help">Haz clic en "Crear copia ahora" para generar el primer respaldo.</p>
+				</div>
+
+				<div class="table-container" id="table-wrapper">
+					<table class="backups-table" aria-label="Listado de copias de seguridad">
+						<thead>
+							<tr>
+								<th scope="col">Archivo</th>
+								<th scope="col">Fecha de creación</th>
+								<th scope="col">Tamaño</th>
+								<th scope="col" class="actions-col">Acciones</th>
+							</tr>
+						</thead>
+						<tbody id="backups-tbody">
+							<!-- Populated dynamically -->
+						</tbody>
+					</table>
+				</div>
+			</section>
+		</div>
+	</AdminShell>
+</Layout>
+
+<script>
+	import { pb, pocketbaseUrl } from '../../../lib/pocketbase';
+	import { adminFetch, requireAdminSession } from '../../../lib/admin';
+
+	interface BackupItem {
+		key: string;
+		size: number;
+		modified: string;
+	}
+
+	interface BackupsResponse {
+		items: BackupItem[];
+		total: number;
+	}
+
+	const status = document.querySelector('#backups-status') as HTMLParagraphElement;
+	const content = document.querySelector('#backups-content') as HTMLDivElement;
+	const retry = document.querySelector('#retry-backups') as HTMLButtonElement;
+	const createBtn = document.querySelector('#create-backup-btn') as HTMLButtonElement;
+	const refreshBtn = document.querySelector('#refresh-backups-btn') as HTMLButtonElement;
+	const countText = document.querySelector('#backups-count-text') as HTMLParagraphElement;
+	const emptyState = document.querySelector('#empty-backups') as HTMLDivElement;
+	const tableWrapper = document.querySelector('#table-wrapper') as HTMLDivElement;
+	const tbody = document.querySelector('#backups-tbody') as HTMLTableSectionElement;
+
+	let busy = false;
+
+	function formatBytes(bytes: number): string {
+		if (!bytes || bytes <= 0) return '0 B';
+		const units = ['B', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(1024));
+		const val = bytes / Math.pow(1024, i);
+		return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+	}
+
+	function formatDate(iso: string): string {
+		if (!iso) return '—';
+		try {
+			const d = new Date(iso);
+			return d.toLocaleString('es-AR', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+			});
+		} catch {
+			return iso;
+		}
+	}
+
+	function message(text: string, error = false) {
+		status.textContent = text;
+		status.dataset.error = String(error);
+	}
+
+	async function loadBackups() {
+		retry.hidden = true;
+		if (!(await requireAdminSession())) return;
+		if (pb.authStore.record?.role !== 'owner') {
+			message('Acceso denegado. Esta sección está reservada al propietario del sitio.', true);
+			return;
+		}
+
+		message('Cargando copias de seguridad…');
+
+		try {
+			const data = await adminFetch<BackupsResponse>('/api/archivos-nava/admin/backups');
+			renderList(data.items || []);
+			content.hidden = false;
+			message('');
+		} catch {
+			message('No se pudo cargar la lista de respaldos. Vuelve a intentarlo.', true);
+			retry.hidden = false;
+		}
+	}
+
+	function renderList(items: BackupItem[]) {
+		tbody.innerHTML = '';
+		countText.textContent = `${items.length} ${items.length === 1 ? 'copia disponible' : 'copias disponibles'}`;
+
+		if (items.length === 0) {
+			emptyState.hidden = false;
+			tableWrapper.hidden = true;
+			return;
+		}
+
+		emptyState.hidden = true;
+		tableWrapper.hidden = false;
+
+		for (const item of items) {
+			const tr = document.createElement('tr');
+
+			const tdKey = document.createElement('td');
+			tdKey.className = 'font-mono key-cell';
+			tdKey.textContent = item.key;
+
+			const tdDate = document.createElement('td');
+			tdDate.textContent = formatDate(item.modified);
+
+			const tdSize = document.createElement('td');
+			tdSize.textContent = formatBytes(item.size);
+
+			const tdActions = document.createElement('td');
+			tdActions.className = 'actions-cell';
+
+			// Download button
+			const dlBtn = document.createElement('button');
+			dlBtn.type = 'button';
+			dlBtn.className = 'secondary-button small-btn';
+			dlBtn.textContent = 'Descargar';
+			dlBtn.addEventListener('click', () => void downloadBackup(item.key));
+
+			// Delete button
+			const delBtn = document.createElement('button');
+			delBtn.type = 'button';
+			delBtn.className = 'danger-button small-btn';
+			delBtn.textContent = 'Eliminar';
+			delBtn.addEventListener('click', () => void deleteBackup(item.key));
+
+			tdActions.append(dlBtn, delBtn);
+			tr.append(tdKey, tdDate, tdSize, tdActions);
+			tbody.appendChild(tr);
+		}
+	}
+
+	async function createBackup() {
+		if (busy) return;
+		const namePrompt = prompt('Nombre identificador para la copia (opcional, ej. antes_de_actualizar):');
+		if (namePrompt === null) return; // user cancelled prompt
+
+		busy = true;
+		createBtn.disabled = true;
+		message('Generando copia de seguridad transaccional…');
+
+		try {
+			const res = await adminFetch<{ success: boolean; name: string }>('/api/archivos-nava/admin/backups', {
+				method: 'POST',
+				body: JSON.stringify({ name: namePrompt.trim() }),
+			});
+			message(`Copia creada con éxito: ${res.name}`);
+			await loadBackups();
+		} catch {
+			message('No se pudo generar la copia de seguridad. Revisa los registros del servidor.', true);
+		} finally {
+			busy = false;
+			createBtn.disabled = false;
+		}
+	}
+
+	async function downloadBackup(key: string) {
+		message(`Iniciando descarga de ${key}…`);
+		try {
+			const res = await fetch(`${pocketbaseUrl}/api/archivos-nava/admin/backups/${encodeURIComponent(key)}`, {
+				headers: {
+					Authorization: `Bearer ${pb.authStore.token}`,
+				},
+			});
+
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}`);
+			}
+
+			const blob = await res.blob();
+			const blobUrl = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = blobUrl;
+			a.download = key;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(blobUrl);
+
+			message(`Descarga completada: ${key}`);
+		} catch {
+			message(`Error al descargar la copia ${key}.`, true);
+		}
+	}
+
+	async function deleteBackup(key: string) {
+		if (busy) return;
+		if (!confirm(`¿Eliminar definitivamente la copia de seguridad "${key}"? Esta acción no se puede deshacer.`)) {
+			return;
+		}
+
+		busy = true;
+		message(`Eliminando ${key}…`);
+
+		try {
+			await adminFetch(`/api/archivos-nava/admin/backups/${encodeURIComponent(key)}`, {
+				method: 'DELETE',
+			});
+			message(`Copia eliminada: ${key}`);
+			await loadBackups();
+		} catch {
+			message(`No se pudo eliminar la copia ${key}.`, true);
+		} finally {
+			busy = false;
+		}
+	}
+
+	createBtn.addEventListener('click', () => void createBackup());
+	refreshBtn.addEventListener('click', () => void loadBackups());
+	retry.addEventListener('click', () => void loadBackups());
+
+	void loadBackups();
+</script>
+
+<style>
+	.backups-intro {
+		color: #bbb;
+		line-height: 1.6;
+		margin-bottom: 24px;
+	}
+
+	#backups-status {
+		min-height: 1.5em;
+		line-height: 1.5;
+		color: #d5e7c9;
+	}
+
+	#backups-status[data-error='true'] {
+		color: #ffb5aa;
+	}
+
+	#backups-content {
+		display: flex;
+		flex-direction: column;
+		gap: 28px;
+	}
+
+	.backups-card {
+		padding: clamp(20px, 3vw, 32px);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 8px;
+		background: #181817;
+	}
+
+	.card-header {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 16px;
+		margin-bottom: 16px;
+	}
+
+	.card-header h2 {
+		margin: 0 0 6px;
+		font-size: 1.25rem;
+		color: #fff;
+	}
+
+	.card-subtitle {
+		margin: 0;
+		font-size: 0.88rem;
+		color: rgba(245, 245, 245, 0.65);
+	}
+
+	.field-help {
+		font-size: 0.82rem;
+		color: rgba(245, 245, 245, 0.5);
+		margin: 0;
+	}
+
+	.empty-state {
+		padding: 36px 20px;
+		text-align: center;
+		color: rgba(245, 245, 245, 0.7);
+		background: rgba(255, 255, 255, 0.02);
+		border-radius: 6px;
+		border: 1px dashed rgba(255, 255, 255, 0.1);
+	}
+
+	.table-container {
+		overflow-x: auto;
+		margin-top: 12px;
+	}
+
+	.backups-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9rem;
+	}
+
+	.backups-table th,
+	.backups-table td {
+		padding: 12px 14px;
+		text-align: left;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.backups-table th {
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: rgba(245, 245, 245, 0.55);
+		font-weight: 600;
+	}
+
+	.key-cell {
+		word-break: break-all;
+		font-size: 0.85rem;
+		color: #e0e0e0;
+	}
+
+	.actions-col {
+		text-align: right;
+	}
+
+	.actions-cell {
+		display: flex;
+		gap: 8px;
+		justify-content: flex-end;
+	}
+
+	.small-btn {
+		padding: 5px 12px;
+		font-size: 0.82rem;
+	}
+</style>

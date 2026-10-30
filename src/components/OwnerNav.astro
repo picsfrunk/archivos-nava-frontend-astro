@@ -1,0 +1,65 @@
+---
+interface Props {
+	active: 'settings' | 'system' | 'backups';
+}
+
+const { active } = Astro.props;
+---
+
+<nav class="owner-tabs" aria-label="Secciones de configuración avanzada">
+	<a
+		href="/admin/advanced/settings"
+		class:list={['owner-tab', { active: active === 'settings' }]}
+		aria-current={active === 'settings' ? 'page' : undefined}
+	>
+		Identidad del sitio
+	</a>
+	<a
+		href="/admin/advanced/system"
+		class:list={['owner-tab', { active: active === 'system' }]}
+		aria-current={active === 'system' ? 'page' : undefined}
+	>
+		Nube y Almacenamiento
+	</a>
+	<a
+		href="/admin/advanced/backups"
+		class:list={['owner-tab', { active: active === 'backups' }]}
+		aria-current={active === 'backups' ? 'page' : undefined}
+	>
+		Copias de seguridad
+	</a>
+</nav>
+
+<style>
+	.owner-tabs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin: 0 0 28px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+		padding-bottom: 12px;
+	}
+
+	.owner-tab {
+		display: inline-flex;
+		align-items: center;
+		padding: 8px 18px;
+		color: rgba(245, 245, 245, 0.7);
+		text-decoration: none;
+		font-size: 0.9rem;
+		font-weight: 500;
+		border-radius: 6px;
+		transition: background 0.15s ease, color 0.15s ease;
+	}
+
+	.owner-tab:hover {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.06);
+	}
+
+	.owner-tab.active {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.12);
+		font-weight: 600;
+	}
+</style>
