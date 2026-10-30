@@ -2,7 +2,7 @@ import PocketBase from 'pocketbase';
 
 const runtimePocketbaseUrl =
     import.meta.env.SSR && typeof process !== 'undefined'
-        ? process.env.PUBLIC_POCKETBASE_URL
+        ? (process.env.INTERNAL_POCKETBASE_URL || process.env.PUBLIC_POCKETBASE_URL)
         : undefined;
 
 export const pocketbaseUrl =
