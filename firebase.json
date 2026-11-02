@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "target": "archivosnava",
     "public": "dist/client",
     "ignore": [
       "firebase.json",
