@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "adn-firebase-sample"
+  },
+  "targets": {
+    "adn-firebase-sample": {
+      "hosting": {
+        "archivosnava": [
+          "archivosnava"
+        ]
+      }
+    }
+  }
+}
