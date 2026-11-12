@@ -59,13 +59,40 @@ import Layout from '../../../layouts/Layout.astro';
 					</div>
 
 					<div class="fields-content">
-						<label class="form-field required-field">
-							<span class="field-label">Categoría <span class="required-mark" aria-hidden="true">*</span></span>
+						<div class="category-field-group">
+							<div class="field-label-row">
+								<label class="field-label" for="category">
+									Categoría <span class="required-mark" aria-hidden="true">*</span>
+								</label>
+								<button type="button" id="open-category-modal-btn" class="inline-create-btn">
+									+ Nueva categoría
+								</button>
+							</div>
+
 							<select id="category" name="category" required>
 								<option value="">Cargando categorías...</option>
 							</select>
+
+							<!-- Callout shown when there are no active categories -->
+							<div id="no-categories-card" class="no-categories-card" hidden>
+								<div class="no-categories-content">
+									<svg class="no-categories-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+										<circle cx="12" cy="12" r="10"></circle>
+										<line x1="12" y1="8" x2="12" y2="12"></line>
+										<line x1="12" y1="16" x2="12.01" y2="16"></line>
+									</svg>
+									<div>
+										<strong>No hay categorías creadas aún</strong>
+										<p>Para subir fotografías necesitás al menos una categoría donde organizarlas.</p>
+									</div>
+								</div>
+								<button type="button" id="create-first-category-btn" class="primary-button create-first-cat-btn">
+									+ Crear primera categoría
+								</button>
+							</div>
+
 							<span class="field-help">Obligatoria. Determina la sección del archivo donde se ubicarán las fotos.</span>
-						</label>
+						</div>
 
 						<div class="title-field-group">
 							<label class="form-field" for="title">
@@ -136,11 +163,50 @@ import Layout from '../../../layouts/Layout.astro';
 				</div>
 			</div>
 		</dialog>
+
+		<!-- Dialog for creating a new category on the fly -->
+		<dialog id="category-modal" class="category-dialog" aria-labelledby="category-modal-title" closedby="any">
+			<div class="category-dialog-content">
+				<div class="category-dialog-header">
+					<h3 id="category-modal-title" class="category-dialog-title">Nueva categoría</h3>
+					<button type="button" id="close-category-modal-btn" class="close-category-btn" aria-label="Cerrar ventana">✕</button>
+				</div>
+				<form id="quick-category-form" class="category-dialog-form" novalidate>
+					<div class="category-modal-body">
+						<p class="category-modal-intro">
+							Creá una categoría para organizar tus fotografías. Podrás editarla o asignarle una portada más adelante desde la sección Categorías.
+						</p>
+
+						<div class="form-field">
+							<label class="field-label" for="new-category-name">
+								Nombre de la categoría <span class="required-mark" aria-hidden="true">*</span>
+							</label>
+							<input id="new-category-name" name="name" type="text" placeholder="Ej: Recitales, Retratos, Teatro..." autocomplete="off" required autofocus />
+							<span class="field-help">El identificador web (slug) se generará automáticamente a partir del nombre.</span>
+						</div>
+
+						<div class="form-field">
+							<label class="field-label" for="new-category-description">
+								Descripción (opcional)
+							</label>
+							<textarea id="new-category-description" name="description" rows="3" placeholder="Detalles de la colección o contexto histórico..."></textarea>
+						</div>
+
+						<div id="category-modal-error" class="category-modal-error" role="alert" hidden></div>
+					</div>
+
+					<div class="category-dialog-actions">
+						<button type="button" id="cancel-category-modal-btn" class="secondary-button">Cancelar</button>
+						<button type="submit" id="save-category-modal-btn" class="primary-button">Crear y seleccionar</button>
+					</div>
+				</form>
+			</div>
+		</dialog>
 	</AdminShell>
 </Layout>
 
 <script>
-	import { loadActiveCategories, redirectToLogin, requireAdminSession, resolveError } from '../../../lib/admin';
+	import { adminFetch, loadActiveCategories, redirectToLogin, requireAdminSession, resolveError } from '../../../lib/admin';
 	import { pb, pocketbaseUrl } from '../../../lib/pocketbase';
 
 	interface SelectedItem {
@@ -180,6 +246,21 @@ import Layout from '../../../layouts/Layout.astro';
 	const inspectImage = document.querySelector('#inspect-image') as HTMLImageElement | null;
 	const inspectTitle = document.querySelector('#inspect-title') as HTMLElement | null;
 	const closeInspectButton = document.querySelector('#close-inspect-button') as HTMLButtonElement | null;
+
+	// Category Quick Creation Elements
+	const openCategoryModalBtn = document.querySelector('#open-category-modal-btn') as HTMLButtonElement | null;
+	const createFirstCategoryBtn = document.querySelector('#create-first-category-btn') as HTMLButtonElement | null;
+	const noCategoriesCard = document.querySelector('#no-categories-card') as HTMLElement | null;
+	const categoryModal = document.querySelector('#category-modal') as HTMLDialogElement | null;
+	const closeCategoryModalBtn = document.querySelector('#close-category-modal-btn') as HTMLButtonElement | null;
+	const cancelCategoryModalBtn = document.querySelector('#cancel-category-modal-btn') as HTMLButtonElement | null;
+	const quickCategoryForm = document.querySelector('#quick-category-form') as HTMLFormElement | null;
+	const newCategoryNameInput = document.querySelector('#new-category-name') as HTMLInputElement | null;
+	const newCategoryDescriptionInput = document.querySelector('#new-category-description') as HTMLTextAreaElement | null;
+	const categoryModalError = document.querySelector('#category-modal-error') as HTMLElement | null;
+	const saveCategoryModalButton = document.querySelector('#save-category-modal-btn') as HTMLButtonElement | null;
+
+	let isCreatingCategory = false;
 
 	const maxImageBytes = 10 * 1024 * 1024;
 	const uploadConcurrency = 3;
@@ -502,7 +583,7 @@ import Layout from '../../../layouts/Layout.astro';
 		renderSelectedList();
 	}
 
-	async function loadCategories() {
+	async function loadCategories(selectedId?: string) {
 		if (!(categorySelect instanceof HTMLSelectElement)) return;
 
 		try {
@@ -522,10 +603,103 @@ import Layout from '../../../layouts/Layout.astro';
 			}
 
 			categorySelect.disabled = categories.length === 0;
+
+			const currentSelected = selectedId || categorySelect.value;
+			if (currentSelected && categories.some((c) => c.id === currentSelected)) {
+				categorySelect.value = currentSelected;
+			} else if (categories.length === 1 && selectedId) {
+				categorySelect.value = categories[0].id;
+			}
+
+			if (noCategoriesCard instanceof HTMLElement) {
+				noCategoriesCard.hidden = categories.length > 0;
+			}
 		} catch {
 			categorySelect.innerHTML = '<option value="">No se pudieron cargar categorías</option>';
 			categorySelect.disabled = true;
+			if (noCategoriesCard instanceof HTMLElement) {
+				noCategoriesCard.hidden = true;
+			}
 			setMessage('No se pudieron cargar las categorías activas.', 'error');
+		}
+	}
+
+	function openCategoryModal() {
+		if (!categoryModal) return;
+		if (quickCategoryForm instanceof HTMLFormElement) {
+			quickCategoryForm.reset();
+		}
+		if (categoryModalError instanceof HTMLElement) {
+			categoryModalError.textContent = '';
+			categoryModalError.hidden = true;
+		}
+		if (typeof categoryModal.showModal === 'function') {
+			categoryModal.showModal();
+		}
+		if (newCategoryNameInput instanceof HTMLInputElement) {
+			newCategoryNameInput.focus();
+		}
+	}
+
+	function closeCategoryModal() {
+		if (categoryModal) {
+			categoryModal.close();
+		}
+	}
+
+	async function handleQuickCategorySubmit(event: Event) {
+		event.preventDefault();
+		if (!(quickCategoryForm instanceof HTMLFormElement) || isCreatingCategory) return;
+
+		const name = newCategoryNameInput?.value.trim() || '';
+		const description = newCategoryDescriptionInput?.value.trim() || '';
+
+		if (!name) {
+			if (categoryModalError instanceof HTMLElement) {
+				categoryModalError.textContent = 'Por favor ingresá un nombre para la categoría.';
+				categoryModalError.hidden = false;
+			}
+			newCategoryNameInput?.focus();
+			return;
+		}
+
+		isCreatingCategory = true;
+		if (saveCategoryModalButton instanceof HTMLButtonElement) {
+			saveCategoryModalButton.disabled = true;
+			saveCategoryModalButton.textContent = 'Creando...';
+		}
+		if (categoryModalError instanceof HTMLElement) {
+			categoryModalError.textContent = '';
+			categoryModalError.hidden = true;
+		}
+
+		try {
+			const result = await adminFetch<{ success: boolean; record: { id: string; name: string } }>('/api/archivos-nava/admin/categories', {
+				method: 'POST',
+				body: JSON.stringify({ name, description }),
+			});
+
+			closeCategoryModal();
+			await loadCategories(result.record?.id);
+			categorySelect?.classList.remove('has-validation-error');
+			setMessage(`Categoría "${result.record?.name || name}" creada y seleccionada con éxito.`, 'success');
+		} catch (error) {
+			if (typeof error === 'object' && error !== null && 'authError' in error) return;
+			const rawError = resolveError(error);
+			let userFriendlyError = rawError;
+			if (rawError.toLowerCase().includes('slug already exists')) {
+				userFriendlyError = 'Ya existe una categoría con un nombre o slug similar.';
+			}
+			if (categoryModalError instanceof HTMLElement) {
+				categoryModalError.textContent = userFriendlyError;
+				categoryModalError.hidden = false;
+			}
+		} finally {
+			isCreatingCategory = false;
+			if (saveCategoryModalButton instanceof HTMLButtonElement) {
+				saveCategoryModalButton.disabled = false;
+				saveCategoryModalButton.textContent = 'Crear y seleccionar';
+			}
 		}
 	}
 
@@ -729,10 +903,16 @@ import Layout from '../../../layouts/Layout.astro';
 
 		const payloadBase = buildPayloadBase(status);
 		if (!payloadBase) {
-			setMessage('Por favor elegí una categoría para las fotos.', 'error');
-			if (categorySelect instanceof HTMLSelectElement) {
-				categorySelect.classList.add('has-validation-error');
-				categorySelect.focus();
+			const hasActiveCategories = Array.from(categorySelect?.options || []).some((opt) => Boolean(opt.value));
+			if (!hasActiveCategories) {
+				setMessage('Tenés que crear una categoría antes de poder subir fotografías.', 'error');
+				openCategoryModal();
+			} else {
+				setMessage('Por favor elegí una categoría para las fotos.', 'error');
+				if (categorySelect instanceof HTMLSelectElement) {
+					categorySelect.classList.add('has-validation-error');
+					categorySelect.focus();
+				}
 			}
 			return;
 		}
@@ -878,6 +1058,30 @@ import Layout from '../../../layouts/Layout.astro';
 		const status = submitter instanceof HTMLButtonElement && submitter.value === 'published' ? 'published' : 'draft';
 		await createPhotos(status, submitter);
 	});
+
+	// Quick category modal triggers and listeners
+	openCategoryModalBtn?.addEventListener('click', openCategoryModal);
+	createFirstCategoryBtn?.addEventListener('click', openCategoryModal);
+	closeCategoryModalBtn?.addEventListener('click', closeCategoryModal);
+	cancelCategoryModalBtn?.addEventListener('click', closeCategoryModal);
+	quickCategoryForm?.addEventListener('submit', handleQuickCategorySubmit);
+
+	// Light-dismiss fallback for dialogs when closedby attribute is unsupported
+	if (categoryModal && !('closedBy' in HTMLDialogElement.prototype)) {
+		const isOutside = (e: MouseEvent | PointerEvent, dialog: HTMLDialogElement) => {
+			const rect = dialog.getBoundingClientRect();
+			return e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom;
+		};
+		let pressedOutside = false;
+		categoryModal.addEventListener('pointerdown', (e) => {
+			pressedOutside = isOutside(e, categoryModal);
+		});
+		categoryModal.addEventListener('pointerup', (e) => {
+			if (pressedOutside && isOutside(e, categoryModal)) {
+				categoryModal.close();
+			}
+		});
+	}
 
 	requireAdminSession().then((isValid) => {
 		if (isValid) loadCategories();
@@ -1403,6 +1607,89 @@ import Layout from '../../../layouts/Layout.astro';
 		gap: 6px;
 	}
 
+	.category-field-group {
+		display: grid;
+		gap: 8px;
+	}
+
+	.field-label-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+	}
+
+	.inline-create-btn {
+		padding: 2px 6px;
+		font-size: 0.8rem;
+		font-weight: 500;
+		color: #e6d5b8;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+	}
+
+	.inline-create-btn:hover {
+		color: #ffffff;
+	}
+
+	.no-categories-card {
+		display: grid;
+		gap: 12px;
+		padding: 14px 16px;
+		border: 1px dashed rgba(230, 213, 184, 0.4);
+		border-radius: 8px;
+		background: rgba(230, 213, 184, 0.05);
+	}
+
+	.no-categories-content {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.no-categories-icon {
+		width: 20px;
+		height: 20px;
+		color: #e6d5b8;
+		flex-shrink: 0;
+		margin-top: 2px;
+	}
+
+	.no-categories-content strong {
+		display: block;
+		font-size: 0.88rem;
+		color: #f5f5f5;
+		margin-bottom: 3px;
+	}
+
+	.no-categories-content p {
+		margin: 0;
+		font-size: 0.8rem;
+		line-height: 1.4;
+		color: rgba(245, 245, 245, 0.65);
+	}
+
+	.create-first-cat-btn {
+		width: 100%;
+		padding: 9px 14px;
+		font-size: 0.84rem;
+		font-weight: 600;
+		text-align: center;
+		color: #101010;
+		background: #e6d5b8;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+
+	.create-first-cat-btn:hover {
+		background: #f0e2cb;
+	}
+
 	.field-label {
 		color: #f5f5f5;
 		font-size: 0.9rem;
@@ -1624,6 +1911,102 @@ import Layout from '../../../layouts/Layout.astro';
 		max-height: calc(85vh - 90px);
 		object-fit: contain;
 		border-radius: 6px;
+	}
+
+	/* -------------------------------------------------------------------------- */
+	/* Quick Category Dialog & Modern Dialog Containment                          */
+	/* -------------------------------------------------------------------------- */
+
+	dialog:modal {
+		overscroll-behavior: contain;
+	}
+
+	dialog::backdrop {
+		overflow: hidden;
+		overscroll-behavior: contain;
+	}
+
+	.category-dialog {
+		padding: 0;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 12px;
+		background: #1c1c1b;
+		color: #f5f5f5;
+		width: min(92vw, 480px);
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.85);
+	}
+
+	.category-dialog::backdrop {
+		background: rgba(0, 0, 0, 0.75);
+		backdrop-filter: blur(4px);
+	}
+
+	.category-dialog-content {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.category-dialog-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 20px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.category-dialog-title {
+		margin: 0;
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: #f5f5f5;
+	}
+
+	.close-category-btn {
+		background: transparent;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 4px;
+		padding: 4px 8px;
+		color: #f5f5f5;
+		font-size: 0.9rem;
+		cursor: pointer;
+		line-height: 1;
+	}
+
+	.close-category-btn:hover {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.category-modal-body {
+		display: grid;
+		gap: 16px;
+		padding: 20px;
+	}
+
+	.category-modal-intro {
+		margin: 0;
+		font-size: 0.84rem;
+		line-height: 1.45;
+		color: rgba(245, 245, 245, 0.65);
+	}
+
+	.category-dialog-actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 12px;
+		padding: 16px 20px;
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+		background: rgba(0, 0, 0, 0.15);
+	}
+
+	.category-modal-error {
+		padding: 10px 12px;
+		border-radius: 6px;
+		background: rgba(255, 180, 169, 0.12);
+		border: 1px solid rgba(255, 180, 169, 0.4);
+		color: #ffb4a9;
+		font-size: 0.82rem;
+		line-height: 1.4;
 	}
 
 	/* -------------------------------------------------------------------------- */
