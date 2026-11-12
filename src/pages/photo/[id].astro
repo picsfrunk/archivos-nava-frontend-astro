@@ -57,6 +57,9 @@ const framePosition = navigation.position > 0
 			data-previous-url={navigation.previous ? `/photo/${navigation.previous.id}` : undefined}
 			data-next-url={navigation.next ? `/photo/${navigation.next.id}` : undefined}
 		>
+			{navigation.previous && <link rel="prefetch" href={`/photo/${navigation.previous.id}`} />}
+			{navigation.next && <link rel="prefetch" href={`/photo/${navigation.next.id}`} />}
+
 			<div class="viewer-topbar">
 				<nav class="breadcrumbs" aria-label="Navegación secundaria">
 					<a href="/gallery" class="crumb-link">Galería</a>
@@ -123,13 +126,20 @@ const framePosition = navigation.position > 0
 						<span>FRM {framePosition}</span>
 					</div>
 
-					<button class="image-button" type="button" data-open-lightbox aria-label="Ver fotografía grande en mesa de luz">
+					<button class="image-button" type="button" data-open-lightbox data-swipe-surface aria-label="Ver fotografía grande en mesa de luz (deslizá horizontalmente para cambiar de foto)">
+						{navigation.previous && (
+							<span class="swipe-edge-indicator is-prev" aria-hidden="true">← Anterior</span>
+						)}
 						<img
 							src={previewUrl(photo.image)}
 							alt={photoAlt(photo)}
 							fetchpriority="high"
+							draggable="false"
 							style={`view-transition-name: photo-${photo.id};`}
 						/>
+						{navigation.next && (
+							<span class="swipe-edge-indicator is-next" aria-hidden="true">Siguiente →</span>
+						)}
 						<span class="zoom-badge" aria-hidden="true">⤢ Ampliar en mesa de luz</span>
 					</button>
 
@@ -137,6 +147,26 @@ const framePosition = navigation.position > 0
 						<span>{title}</span>
 						<span>{yearText ? `AÑO ${yearText}` : 'S/F'} · #{photo.id.slice(0, 7).toUpperCase()}</span>
 					</figcaption>
+
+					{(navigation.previous || navigation.next) && (
+						<div class="mount-touch-bar" aria-label="Controles rápidos de fotograma">
+							{navigation.previous ? (
+								<a class="touch-step-btn" href={`/photo/${navigation.previous.id}`} aria-label={`Fotografía anterior: ${previousLabel}`}>
+									← Anterior
+								</a>
+							) : (
+								<span class="touch-step-btn is-disabled" aria-hidden="true">Inicio</span>
+							)}
+							<span class="swipe-hint-text" aria-hidden="true">⇄ Deslizá la foto</span>
+							{navigation.next ? (
+								<a class="touch-step-btn" href={`/photo/${navigation.next.id}`} aria-label={`Fotografía siguiente: ${nextLabel}`}>
+									Siguiente →
+								</a>
+							) : (
+								<span class="touch-step-btn is-disabled" aria-hidden="true">Fin</span>
+							)}
+						</div>
+					)}
 				</figure>
 
 				<section class="photo-info" aria-labelledby="photo-title">
@@ -246,13 +276,29 @@ const framePosition = navigation.position > 0
 						<strong id="lightbox-title">{title}</strong>
 					</div>
 					<div class="lightbox-actions">
+						{navigation.previous && (
+							<a class="lightbox-nav-btn" href={`/photo/${navigation.previous.id}`} aria-label={`Anterior: ${previousLabel}`}>
+								←
+							</a>
+						)}
+						{navigation.next && (
+							<a class="lightbox-nav-btn" href={`/photo/${navigation.next.id}`} aria-label={`Siguiente: ${nextLabel}`}>
+								→
+							</a>
+						)}
 						<button class="lightbox-close" type="button" data-close-lightbox aria-label="Cerrar vista ampliada">
 							✕ Cerrar
 						</button>
 					</div>
 				</div>
-				<div class="lightbox-stage">
-					<img data-src={lightboxUrl(photo.image)} alt={photoAlt(photo)} />
+				<div class="lightbox-stage" data-swipe-surface>
+					{navigation.previous && (
+						<span class="swipe-edge-indicator is-prev" aria-hidden="true">← Anterior</span>
+					)}
+					<img data-src={lightboxUrl(photo.image)} alt={photoAlt(photo)} draggable="false" />
+					{navigation.next && (
+						<span class="swipe-edge-indicator is-next" aria-hidden="true">Siguiente →</span>
+					)}
 				</div>
 			</dialog>
 		</main>
@@ -260,10 +306,11 @@ const framePosition = navigation.position > 0
 </Layout>
 
 <script>
-	const page = document.querySelector('.photo-page');
+	const page = document.querySelector('.photo-page') as HTMLElement | null;
 	const lightbox = document.querySelector('.lightbox');
 	const openButtons = document.querySelectorAll('[data-open-lightbox]');
 	const closeButton = document.querySelector('[data-close-lightbox]');
+	let suppressNextClick = false;
 
 	let supportsDisplayTransition: boolean | undefined;
 	function canTransitionDisplay() {
@@ -302,7 +349,13 @@ const framePosition = navigation.position > 0
 		dialog.close();
 	}
 
-	function openLightbox() {
+	function openLightbox(event?: Event) {
+		if (suppressNextClick) {
+			event?.preventDefault();
+			event?.stopPropagation();
+			suppressNextClick = false;
+			return;
+		}
 		if (!(lightbox instanceof HTMLDialogElement)) return;
 		const image = lightbox.querySelector('img[data-src]');
 
@@ -345,14 +398,176 @@ const framePosition = navigation.position > 0
 		// Also allow clicking the empty stage area around the high-res image to dismiss
 		const stage = lightbox.querySelector('.lightbox-stage');
 		stage?.addEventListener('click', (event) => {
+			if (suppressNextClick) {
+				suppressNextClick = false;
+				return;
+			}
 			if (event.target === stage) closeLightbox();
 		});
 	}
 
+	// Touch swipe navigation on photo mount and lightbox stage
+	function attachSwipeSurface(surface: HTMLElement) {
+		const image = surface.querySelector('img');
+		if (!(image instanceof HTMLImageElement) || !page) return;
+
+		const previousUrl = page.dataset.previousUrl;
+		const nextUrl = page.dataset.nextUrl;
+		if (!previousUrl && !nextUrl) return;
+
+		let startX = 0;
+		let startY = 0;
+		let startTime = 0;
+		let currentDx = 0;
+		let axisLocked: 'none' | 'x' | 'y' = 'none';
+		let tracking = false;
+		let navigating = false;
+
+		const SWIPE_THRESHOLD = 52;
+		const FLICK_MIN_DISTANCE = 28;
+		const FLICK_VELOCITY = 0.35;
+
+		function resetSurface(animate = true) {
+			surface.removeAttribute('data-swipe-dir');
+			surface.removeAttribute('data-swipe-ready');
+			image.style.transition = animate
+				? 'transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease'
+				: 'none';
+			image.style.transform = '';
+			image.style.opacity = '';
+		}
+
+		surface.addEventListener(
+			'touchstart',
+			(event) => {
+				if (navigating) return;
+				if (event.touches.length !== 1) {
+					tracking = false;
+					resetSurface(true);
+					return;
+				}
+				if ((window.visualViewport?.scale ?? 1) > 1.05) {
+					tracking = false;
+					return;
+				}
+				const touch = event.touches[0];
+				startX = touch.clientX;
+				startY = touch.clientY;
+				startTime = performance.now();
+				currentDx = 0;
+				axisLocked = 'none';
+				tracking = true;
+				image.style.transition = 'none';
+			},
+			{ passive: true },
+		);
+
+		surface.addEventListener(
+			'touchmove',
+			(event) => {
+				if (!tracking || navigating) return;
+				if (event.touches.length !== 1 || (window.visualViewport?.scale ?? 1) > 1.05) {
+					tracking = false;
+					resetSurface(true);
+					return;
+				}
+
+				const touch = event.touches[0];
+				const dx = touch.clientX - startX;
+				const dy = touch.clientY - startY;
+
+				if (axisLocked === 'none') {
+					if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+					if (Math.abs(dx) > Math.abs(dy) * 1.15) {
+						axisLocked = 'x';
+					} else {
+						axisLocked = 'y';
+						tracking = false;
+						resetSurface(false);
+						return;
+					}
+				}
+
+				if (axisLocked !== 'x') return;
+				currentDx = dx;
+
+				const wantsNext = dx < 0;
+				const targetUrl = wantsNext ? nextUrl : previousUrl;
+				const damping = targetUrl ? 0.52 : 0.14;
+				const offset = dx * damping;
+
+				image.style.transform = `translate3d(${offset.toFixed(1)}px, 0, 0)`;
+				if (targetUrl) {
+					surface.dataset.swipeDir = wantsNext ? 'next' : 'prev';
+					if (Math.abs(dx) >= SWIPE_THRESHOLD) {
+						surface.dataset.swipeReady = 'true';
+					} else {
+						surface.removeAttribute('data-swipe-ready');
+					}
+				} else {
+					surface.removeAttribute('data-swipe-dir');
+					surface.removeAttribute('data-swipe-ready');
+				}
+			},
+			{ passive: true },
+		);
+
+		function finishTouch() {
+			if (!tracking || navigating) return;
+			tracking = false;
+
+			if (axisLocked !== 'x') {
+				resetSurface(false);
+				return;
+			}
+
+			const elapsed = Math.max(1, performance.now() - startTime);
+			const velocity = Math.abs(currentDx) / elapsed;
+			const isCommit =
+				Math.abs(currentDx) >= SWIPE_THRESHOLD ||
+				(Math.abs(currentDx) >= FLICK_MIN_DISTANCE && velocity >= FLICK_VELOCITY);
+
+			if (Math.abs(currentDx) > 10) {
+				suppressNextClick = true;
+				setTimeout(() => {
+					suppressNextClick = false;
+				}, 350);
+			}
+
+			const wantsNext = currentDx < 0;
+			const targetUrl = wantsNext ? nextUrl : previousUrl;
+
+			if (isCommit && targetUrl) {
+				navigating = true;
+				const exitX = wantsNext ? '-105%' : '105%';
+				image.style.transition = 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease';
+				image.style.transform = `translate3d(${exitX}, 0, 0)`;
+				image.style.opacity = '0.18';
+				setTimeout(() => {
+					window.location.href = targetUrl;
+				}, 150);
+				return;
+			}
+
+			resetSurface(true);
+		}
+
+		surface.addEventListener('touchend', finishTouch, { passive: true });
+		surface.addEventListener(
+			'touchcancel',
+			() => {
+				tracking = false;
+				resetSurface(true);
+			},
+			{ passive: true },
+		);
+	}
+
+	document.querySelectorAll<HTMLElement>('[data-swipe-surface]').forEach(attachSwipeSurface);
+
 	document.addEventListener('keydown', (event) => {
 		if (event.defaultPrevented) return;
 		if (event.target instanceof HTMLElement && event.target.closest('input, select, textarea, details[open], [contenteditable]')) return;
-		if (lightbox instanceof HTMLDialogElement && lightbox.open) return;
 
 		if (!(page instanceof HTMLElement)) return;
 		const previousUrl = page.dataset.previousUrl;
@@ -649,7 +864,7 @@ const framePosition = navigation.position > 0
 		display: grid;
 		place-items: center;
 		width: 100%;
-		min-height: 360px;
+		min-height: clamp(240px, 48dvh, 360px);
 		padding: clamp(8px, 1.5vw, 18px);
 		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-xs);
@@ -657,13 +872,17 @@ const framePosition = navigation.position > 0
 		background: #070605;
 		cursor: zoom-in;
 		overflow: hidden;
+		touch-action: pan-y pinch-zoom;
+		user-select: none;
+		-webkit-user-select: none;
 	}
 
 	.photo-mount img {
 		width: 100%;
-		max-height: calc(100vh - 230px);
+		max-height: calc(100dvh - 230px);
 		object-fit: contain;
 		display: block;
+		will-change: transform;
 		transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
@@ -671,6 +890,50 @@ const framePosition = navigation.position > 0
 		.image-button:hover img {
 			transform: scale(1.01);
 		}
+	}
+
+	/* Swipe Edge Indicators */
+	.swipe-edge-indicator {
+		position: absolute;
+		top: 50%;
+		z-index: 4;
+		transform: translateY(-50%) scale(0.92);
+		padding: 8px 12px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		background: rgba(13, 12, 10, 0.9);
+		color: var(--text);
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 150ms ease, transform 150ms ease, background-color 150ms ease, color 150ms ease;
+	}
+
+	.swipe-edge-indicator.is-prev {
+		left: 12px;
+	}
+
+	.swipe-edge-indicator.is-next {
+		right: 12px;
+	}
+
+	[data-swipe-surface][data-swipe-dir="prev"] .swipe-edge-indicator.is-prev,
+	[data-swipe-surface][data-swipe-dir="next"] .swipe-edge-indicator.is-next {
+		opacity: 0.85;
+		transform: translateY(-50%) scale(1);
+	}
+
+	[data-swipe-surface][data-swipe-ready="true"][data-swipe-dir="prev"] .swipe-edge-indicator.is-prev,
+	[data-swipe-surface][data-swipe-ready="true"][data-swipe-dir="next"] .swipe-edge-indicator.is-next {
+		opacity: 1;
+		background: var(--accent);
+		border-color: var(--accent);
+		color: #14110d;
+		transform: translateY(-50%) scale(1.04);
 	}
 
 	.zoom-badge {
@@ -697,6 +960,56 @@ const framePosition = navigation.position > 0
 		opacity: 1;
 		border-color: var(--accent);
 		transform: translateY(-2px);
+	}
+
+	/* Quick Touch Film-Strip Control Bar inside Photo Mount */
+	.mount-touch-bar {
+		display: none;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		margin-top: 10px;
+		padding-top: 10px;
+		border-top: 1px dashed var(--border);
+	}
+
+	.touch-step-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 38px;
+		padding: 6px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-xs);
+		background: var(--surface);
+		color: var(--text);
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		text-decoration: none;
+		transition: border-color 150ms ease, background-color 150ms ease;
+	}
+
+	.touch-step-btn:hover:not(.is-disabled) {
+		border-color: var(--accent);
+		background: var(--surface-hover);
+	}
+
+	.touch-step-btn.is-disabled {
+		opacity: 0.4;
+		border-style: dashed;
+		color: var(--text-muted);
+	}
+
+	.swipe-hint-text {
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--film-stamp);
+		text-align: center;
 	}
 
 	/* Archival Index Card */
@@ -1048,11 +1361,16 @@ const framePosition = navigation.position > 0
 	.lightbox-actions {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		flex-shrink: 0;
 	}
 
+	.lightbox-nav-btn,
 	.lightbox-close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 36px;
 		border: 1px solid rgba(255, 255, 255, 0.22);
 		border-radius: var(--radius-xs);
 		padding: 7px 12px;
@@ -1062,36 +1380,51 @@ const framePosition = navigation.position > 0
 		font-size: 0.74rem;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
+		text-decoration: none;
 		cursor: pointer;
 		transition: border-color 150ms ease, background-color 150ms ease;
 	}
 
+	.lightbox-nav-btn:hover,
 	.lightbox-close:hover {
 		border-color: #dfa960;
 		background: rgba(223, 169, 96, 0.16);
 	}
 
 	.lightbox-stage {
+		position: relative;
 		display: grid;
 		place-items: center;
 		padding: 16px;
 		flex: 1 1 auto;
 		min-height: 0;
+		overflow: hidden;
+		touch-action: pan-y pinch-zoom;
+		user-select: none;
+		-webkit-user-select: none;
 	}
 
 	.lightbox img {
 		width: 100%;
-		max-height: calc(94vh - 88px);
+		max-height: calc(94dvh - 88px);
 		object-fit: contain;
+		will-change: transform;
+	}
+
+	@media (pointer: coarse), (max-width: 960px) {
+		.mount-touch-bar {
+			display: flex;
+		}
 	}
 
 	@media (max-width: 960px) {
 		.photo-detail {
 			grid-template-columns: 1fr;
+			gap: 24px;
 		}
 
 		.photo-mount img {
-			max-height: 68vh;
+			max-height: 66dvh;
 		}
 
 		.photo-navigation {
@@ -1105,6 +1438,59 @@ const framePosition = navigation.position > 0
 
 		.nav-card.next .nav-dir {
 			justify-content: flex-start;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.photo-page {
+			padding-inline: 14px;
+			padding-top: 16px;
+		}
+
+		.viewer-topbar {
+			gap: 10px;
+			margin-bottom: 16px;
+			padding-bottom: 12px;
+		}
+
+		.back-strip-link {
+			width: 100%;
+			text-align: center;
+		}
+
+		.switcher-menu {
+			position: fixed;
+			top: auto;
+			left: 14px;
+			right: 14px;
+			width: auto;
+			max-width: calc(100dvw - 28px);
+			margin-top: 8px;
+		}
+
+		.zoom-badge {
+			right: 10px;
+			bottom: 10px;
+			padding: 5px 9px;
+			font-size: 0.64rem;
+		}
+
+		.actions {
+			flex-direction: column;
+		}
+
+		.action-btn {
+			width: 100%;
+		}
+
+		.lightbox {
+			width: 98dvw;
+			max-height: 96dvh;
+		}
+
+		.lightbox-toolbar {
+			padding: 10px 12px;
+			gap: 10px;
 		}
 	}
 </style>
