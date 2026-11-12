@@ -5,63 +5,77 @@ import Layout from '../../../layouts/Layout.astro';
 
 <Layout title="Fotografías | ARCHIVOS NAVA" description="Gestión de fotografías.">
 	<AdminShell title="Fotografías" active="photos">
-		<div class="toolbar" aria-label="Filtros">
-            <label class="search-field">Buscar
-                <input id="search-filter" type="search" maxlength="200" placeholder="Título, descripción o pie de foto…" />
-            </label>
-            <label>Año
-                <input id="year-filter" type="text" inputmode="numeric" maxlength="4" placeholder="Ej. 1985" aria-describedby="year-error" />
-            </label>
-            <span id="year-error" role="alert"></span>
-            <button id="clear-filters" class="secondary-button" type="button">Limpiar filtros</button>
-			<button class="filter-button" type="button" data-filter="all" aria-pressed="true">
-				Todas
-			</button>
-			<button class="filter-button" type="button" data-filter="published">
-				Publicadas
-			</button>
-			<button class="filter-button" type="button" data-filter="draft">
-				Borradores
-			</button>
-			<button class="filter-button" type="button" data-filter="trash">
-				Papelera
-			</button>
-			<button id="empty-trash-button" class="danger-button" type="button" hidden>
-				Vaciar papelera
-			</button>
-			<label class="category-filter">
-				<span>Categoría</span>
-				<select id="category-filter">
-					<option value="">Todas</option>
-				</select>
-			</label>
-		</div>
+		<search class="toolbar" aria-label="Filtros">
+			<div class="toolbar-top">
+				<label class="search-field">
+					<span>Buscar en el archivo</span>
+					<input id="search-filter" type="search" maxlength="200" placeholder="Título, descripción o pie de foto…" />
+				</label>
+				<label class="year-field">
+					<span>Año</span>
+					<input id="year-filter" type="text" inputmode="numeric" maxlength="4" placeholder="Ej. 1985" aria-describedby="year-error" />
+				</label>
+				<label class="category-filter">
+					<span>Categoría / Rollo</span>
+					<select id="category-filter">
+						<option value="">Todas</option>
+					</select>
+				</label>
+				<button id="clear-filters" class="secondary-button" type="button">Limpiar filtros</button>
+			</div>
+
+			<span id="year-error" role="alert"></span>
+
+			<div class="toolbar-bottom">
+				<div class="status-tabs" role="group" aria-label="Filtrar por estado">
+					<button class="filter-button" type="button" data-filter="all" aria-pressed="true">
+						Todas
+					</button>
+					<button class="filter-button" type="button" data-filter="published">
+						Publicadas
+					</button>
+					<button class="filter-button" type="button" data-filter="draft">
+						Borradores
+					</button>
+					<button class="filter-button" type="button" data-filter="trash">
+						Papelera
+					</button>
+				</div>
+
+				<button id="empty-trash-button" class="danger-button" type="button" hidden>
+					Vaciar papelera
+				</button>
+			</div>
+		</search>
 
 		<label class="select-page"><input id="select-page" type="checkbox" /> Seleccionar todas las visibles</label>
-        <div class="action-area">
-        <div id="bulk-bar" class="bulk-bar" hidden aria-label="Acciones sobre las fotografías seleccionadas">
-            <strong id="selection-count" role="status"></strong>
-            <button type="button" class="secondary-button" data-bulk="publish">Publicar</button>
-            <button type="button" class="secondary-button" data-bulk="draft">Pasar a borrador</button>
-            <button type="button" class="danger-button" data-bulk="trash">Mover a papelera</button>
-            <button type="button" class="secondary-button" data-bulk="restore">Restaurar</button>
-            <button id="choose-category" type="button" class="secondary-button">Cambiar categoría</button>
-            <label id="bulk-category-label" hidden>Categoría de destino
-                <select id="bulk-category"><option value="">Elegí una categoría</option></select>
-                <button type="button" class="secondary-button" data-bulk="move_category">Aplicar categoría</button>
-            </label>
-        </div>
-        <div id="admin-message-banner" class="message-banner" hidden>
-            <p id="admin-message" class="message" role="status" aria-live="polite"></p>
-            <button id="dismiss-message-button" class="dismiss-message" type="button" aria-label="Cerrar aviso">×</button>
-        </div>
-        </div>
-        <div id="photo-grid" class="photo-grid" aria-live="polite"></div>
+		<div class="action-area">
+			<div id="bulk-bar" class="bulk-bar" hidden aria-label="Acciones sobre las fotografías seleccionadas">
+				<strong id="selection-count" role="status"></strong>
+				<button type="button" class="secondary-button" data-bulk="publish">Publicar</button>
+				<button type="button" class="secondary-button" data-bulk="draft">Pasar a borrador</button>
+				<button type="button" class="danger-button" data-bulk="trash">Mover a papelera</button>
+				<button type="button" class="secondary-button" data-bulk="restore">Restaurar</button>
+				<button id="choose-category" type="button" class="secondary-button">Cambiar categoría</button>
+				<label id="bulk-category-label" class="bulk-cat-inline" hidden>
+					<span>Categoría de destino</span>
+					<div class="bulk-cat-controls">
+						<select id="bulk-category"><option value="">Elegí una categoría</option></select>
+						<button type="button" class="primary-button" data-bulk="move_category">Aplicar categoría</button>
+					</div>
+				</label>
+			</div>
+			<div id="admin-message-banner" class="message-banner" hidden>
+				<p id="admin-message" class="message" role="status" aria-live="polite"></p>
+				<button id="dismiss-message-button" class="dismiss-message" type="button" aria-label="Cerrar aviso">×</button>
+			</div>
+		</div>
+		<div id="photo-grid" class="photo-grid stagger-grid" aria-live="polite"></div>
 
 		<div class="pager">
-			<button id="previous-page" class="secondary-button" type="button">Anterior</button>
+			<button id="previous-page" class="secondary-button" type="button">← Anterior</button>
 			<span id="page-label">Página 1</span>
-			<button id="next-page" class="secondary-button" type="button">Siguiente</button>
+			<button id="next-page" class="secondary-button" type="button">Siguiente →</button>
 		</div>
 
 	</AdminShell>
@@ -71,21 +85,21 @@ import Layout from '../../../layouts/Layout.astro';
 	import { adminFetch, loadAdminCategories, requireAdminSession, resolveError } from '../../../lib/admin';
 
 	const searchInput = document.querySelector('#search-filter') as HTMLInputElement;
-    const yearInput = document.querySelector('#year-filter') as HTMLInputElement;
-    const yearError = document.querySelector('#year-error') as HTMLElement;
-    const selectPage = document.querySelector('#select-page') as HTMLInputElement;
-    const bulkBar = document.querySelector('#bulk-bar') as HTMLElement;
-    const bulkCategory = document.querySelector('#bulk-category') as HTMLSelectElement;
-    const categoryLabel = document.querySelector('#bulk-category-label') as HTMLElement;
-    const selected = new Set<string>();
-    let bulkBusy = false;
-    let requestVersion = 0;
-    let searchTimer: ReturnType<typeof setTimeout>;
-    let activeSearch = new URLSearchParams(location.search).get('search') || '';
-    let activeYear = new URLSearchParams(location.search).get('year') || '';
-    searchInput.value = activeSearch;
-    yearInput.value = activeYear;
-    const grid = document.querySelector('#photo-grid');
+	const yearInput = document.querySelector('#year-filter') as HTMLInputElement;
+	const yearError = document.querySelector('#year-error') as HTMLElement;
+	const selectPage = document.querySelector('#select-page') as HTMLInputElement;
+	const bulkBar = document.querySelector('#bulk-bar') as HTMLElement;
+	const bulkCategory = document.querySelector('#bulk-category') as HTMLSelectElement;
+	const categoryLabel = document.querySelector('#bulk-category-label') as HTMLElement;
+	const selected = new Set<string>();
+	let bulkBusy = false;
+	let requestVersion = 0;
+	let searchTimer: ReturnType<typeof setTimeout>;
+	let activeSearch = new URLSearchParams(location.search).get('search') || '';
+	let activeYear = new URLSearchParams(location.search).get('year') || '';
+	searchInput.value = activeSearch;
+	yearInput.value = activeYear;
+	const grid = document.querySelector('#photo-grid');
 	const message = document.querySelector('#admin-message');
 	const messageBanner = document.querySelector('#admin-message-banner');
 	const dismissMessageButton = document.querySelector('#dismiss-message-button');
@@ -115,6 +129,14 @@ import Layout from '../../../layouts/Layout.astro';
 	let currentPhotos = [];
 	let categories = [];
 
+	async function confirmAction(options: { title: string; message: string; confirmText: string; danger?: boolean }) {
+		const ask = (window as any).archiveConfirm;
+		if (typeof ask === 'function') {
+			return ask(options);
+		}
+		return window.confirm(options.message);
+	}
+
 	function setMessage(text, type = 'neutral') {
 		if (!(message instanceof HTMLElement)) return;
 		message.textContent = text;
@@ -142,12 +164,12 @@ import Layout from '../../../layouts/Layout.astro';
 		const params = new URLSearchParams();
 		if (activeFilter !== 'all') params.set('status', activeFilter);
 		if (activeCategory) params.set('category', activeCategory);
-        if (activeSearch) params.set('search', activeSearch);
-        if (activeYear) params.set('year', activeYear);
+		if (activeSearch) params.set('search', activeSearch);
+		if (activeYear) params.set('year', activeYear);
 		if (currentPage > 1) params.set('page', String(currentPage));
 		const query = params.toString();
 		const url = query ? `/admin/photos?${query}` : '/admin/photos';
-        if (location.pathname + location.search !== url) window.history.pushState(null, '', url);
+		if (location.pathname + location.search !== url) window.history.pushState(null, '', url);
 	}
 
 	function updateFilterButtons() {
@@ -214,9 +236,45 @@ import Layout from '../../../layouts/Layout.astro';
 			return;
 		}
 
-		for (const photo of photos) {
+		photos.forEach((photo, idx) => {
 			const article = document.createElement('article');
-			article.className = 'photo-card';
+			article.className = 'photo-card admin-photo-card';
+
+			const topStrip = document.createElement('div');
+			topStrip.className = 'admin-card-strip';
+
+			const selectionLabel = document.createElement('label');
+			selectionLabel.className = 'photo-select';
+			const checkbox = document.createElement('input');
+			checkbox.type = 'checkbox';
+			checkbox.dataset.photoId = photo.id;
+			checkbox.disabled = isLoading || bulkBusy;
+			checkbox.addEventListener('change', () => {
+				if (checkbox.checked) selected.add(photo.id); else selected.delete(photo.id);
+				updateSelection();
+			});
+			const selectSpan = document.createElement('span');
+			selectSpan.textContent = `FRM ${String(idx + 1).padStart(2, '0')}`;
+			selectionLabel.setAttribute('aria-label', `Seleccionar ${photo.title || 'Fotografía'}`);
+			selectionLabel.append(checkbox, selectSpan);
+
+			const badges = document.createElement('div');
+			badges.className = 'photo-badges';
+
+			if (photo.is_home_cover) {
+				const cover = document.createElement('span');
+				cover.className = 'status-pill cover-pill';
+				cover.textContent = 'Portada';
+				badges.append(cover);
+			}
+
+			const status = document.createElement('span');
+			status.className = 'status-pill';
+			status.dataset.status = photo.status;
+			status.textContent = statusLabels[photo.status] || photo.status;
+			badges.append(status);
+
+			topStrip.append(selectionLabel, badges);
 
 			const image = document.createElement('img');
 			image.src = photo.image;
@@ -236,22 +294,6 @@ import Layout from '../../../layouts/Layout.astro';
 			const created = formatDate(photo.created);
 			if (created) pieces.push(created);
 			meta.textContent = pieces.join(' · ');
-
-			const status = document.createElement('span');
-			status.className = 'status-pill';
-			status.dataset.status = photo.status;
-			status.textContent = statusLabels[photo.status] || photo.status;
-
-			const badges = document.createElement('div');
-			badges.className = 'photo-badges';
-			badges.append(status);
-
-			if (photo.is_home_cover) {
-				const cover = document.createElement('span');
-				cover.className = 'status-pill cover-pill';
-				cover.textContent = 'Portada';
-				badges.append(cover);
-			}
 
 			const actions = document.createElement('div');
 			actions.className = 'photo-actions';
@@ -290,14 +332,14 @@ import Layout from '../../../layouts/Layout.astro';
 				if (activeCategory && !activeSearch && !activeYear) {
 					const upButton = document.createElement('button');
 					upButton.type = 'button';
-					upButton.className = 'secondary-button';
-					upButton.textContent = 'Subir';
+					upButton.className = 'icon-button';
+					upButton.textContent = '↑ Subir';
 					upButton.addEventListener('click', () => movePhoto(photo.id, 'up'));
 
 					const downButton = document.createElement('button');
 					downButton.type = 'button';
-					downButton.className = 'secondary-button';
-					downButton.textContent = 'Bajar';
+					downButton.className = 'icon-button';
+					downButton.textContent = '↓ Bajar';
 					downButton.addEventListener('click', () => movePhoto(photo.id, 'down'));
 
 					actions.append(upButton, downButton);
@@ -311,33 +353,22 @@ import Layout from '../../../layouts/Layout.astro';
 				actions.append(trashButton);
 			}
 
-			const selectionLabel = document.createElement('label');
-            selectionLabel.className = 'photo-select';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.dataset.photoId = photo.id;
-            checkbox.disabled = isLoading || bulkBusy;
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) selected.add(photo.id); else selected.delete(photo.id);
-                updateSelection();
-            });
-            selectionLabel.append(checkbox, document.createTextNode(`Seleccionar ${photo.title || 'Fotografía'}`));
-            body.append(selectionLabel, title, meta, badges, actions);
-			article.append(image, body);
+			body.append(title, meta, actions);
+			article.append(topStrip, image, body);
 			grid.append(article);
-		}
+		});
 	}
 
 	async function loadCategories() {
 		try {
 			categories = await loadAdminCategories();
 			updateCategoryFilter();
-            for (const category of categories.filter(item => item.active && !item.isTechnical)) {
-                const option = document.createElement('option');
-                option.value = category.id; option.textContent = category.name || 'Categoría';
-                bulkCategory.append(option);
-            }
-        } catch (error) {
+			for (const category of categories.filter(item => item.active && !item.isTechnical)) {
+				const option = document.createElement('option');
+				option.value = category.id; option.textContent = category.name || 'Categoría';
+				bulkCategory.append(option);
+			}
+		} catch (error) {
 			if (error?.authError) return;
 			categories = [];
 			updateCategoryFilter();
@@ -346,27 +377,27 @@ import Layout from '../../../layouts/Layout.astro';
 	}
 
 	async function loadPhotos() {
-        clearTimeout(searchTimer);
-        const version = ++requestVersion;
-        activeSearch = searchInput.value.trim();
-        activeYear = yearInput.value.trim();
-        setUrlState();
-        clearSelection();
-        if (activeYear && (!/^\d{1,4}$/.test(activeYear) || Number(activeYear) < 1800 || Number(activeYear) > 2100)) {
-            yearError.textContent = 'Ingresá un año entero entre 1800 y 2100.';
-            yearInput.setAttribute('aria-invalid', 'true');
-            setMessage('Revisá el año para continuar.', 'error');
-            isLoading = false;
-            hasMore = false;
-            renderPhotos([]);
-            updatePager();
-            updateSelection();
-            return;
-        }
-        yearError.textContent = '';
-        yearInput.removeAttribute('aria-invalid');
-        isLoading = true;
-        updateSelection();
+		clearTimeout(searchTimer);
+		const version = ++requestVersion;
+		activeSearch = searchInput.value.trim();
+		activeYear = yearInput.value.trim();
+		setUrlState();
+		clearSelection();
+		if (activeYear && (!/^\d{1,4}$/.test(activeYear) || Number(activeYear) < 1800 || Number(activeYear) > 2100)) {
+			yearError.textContent = 'Ingresá un año entero entre 1800 y 2100.';
+			yearInput.setAttribute('aria-invalid', 'true');
+			setMessage('Revisá el año para continuar.', 'error');
+			isLoading = false;
+			hasMore = false;
+			renderPhotos([]);
+			updatePager();
+			updateSelection();
+			return;
+		}
+		yearError.textContent = '';
+		yearInput.removeAttribute('aria-invalid');
+		isLoading = true;
+		updateSelection();
 		updateFilterButtons();
 		updatePager();
 		updateTrashControls();
@@ -380,25 +411,25 @@ import Layout from '../../../layouts/Layout.astro';
 				perPage: '24',
 			});
 			if (activeCategory) params.set('category', activeCategory);
-        if (activeSearch) params.set('search', activeSearch);
-        if (activeYear) params.set('year', activeYear);
+			if (activeSearch) params.set('search', activeSearch);
+			if (activeYear) params.set('year', activeYear);
 			const result = await adminFetch(`/api/archivos-nava/admin/photos?${params.toString()}`);
 			if (version !== requestVersion) return;
-            hasMore = Boolean(result.hasMore);
+			hasMore = Boolean(result.hasMore);
 			renderPhotos(result.items || []);
 			setMessage('');
-            return true;
+			return true;
 		} catch (error) {
 			if (error?.authError) return;
 			if (version !== requestVersion) return;
-            hasMore = false;
-            renderPhotos([]);
+			hasMore = false;
+			renderPhotos([]);
 			setMessage(resolveError(error), 'error');
-            return false;
+			return false;
 		} finally {
-            if (version !== requestVersion) return;
+			if (version !== requestVersion) return;
 			isLoading = false;
-            updateSelection();
+			updateSelection();
 			updatePager();
 			updateTrashControls();
 		}
@@ -435,7 +466,12 @@ import Layout from '../../../layouts/Layout.astro';
 	}
 
 	async function trashPhoto(id) {
-		const confirmed = window.confirm('¿Enviar esta fotografía a la papelera? Podrás restaurarla después.');
+		const confirmed = await confirmAction({
+			title: '¿Enviar fotografía a la papelera?',
+			message: 'Dejará de estar visible en el archivo público, pero podrás restaurarla cuando quieras.',
+			confirmText: 'Enviar a papelera',
+			danger: true,
+		});
 		if (!confirmed) return;
 
 		try {
@@ -464,9 +500,12 @@ import Layout from '../../../layouts/Layout.astro';
 	}
 
 	async function deletePhotoPermanently(id) {
-		const confirmed = window.confirm(
-			'¿Eliminar definitivamente esta fotografía? Se borrará el registro y el archivo en Cloudinary. Esta acción es irreversible.',
-		);
+		const confirmed = await confirmAction({
+			title: '¿Eliminar definitivamente?',
+			message: 'Se borrará el registro y el archivo en Cloudinary. Esta acción es irreversible.',
+			confirmText: 'Eliminar definitivamente',
+			danger: true,
+		});
 		if (!confirmed) return;
 
 		try {
@@ -482,9 +521,12 @@ import Layout from '../../../layouts/Layout.astro';
 	}
 
 	async function emptyTrash() {
-		const confirmed = window.confirm(
-			'¿Vaciar la papelera? Se borrarán definitivamente los registros y los archivos en Cloudinary. Esta acción es irreversible.',
-		);
+		const confirmed = await confirmAction({
+			title: '¿Vaciar la papelera?',
+			message: 'Se borrarán definitivamente todos los registros en papelera y sus archivos en Cloudinary. Esta acción es irreversible.',
+			confirmText: 'Vaciar papelera',
+			danger: true,
+		});
 		if (!confirmed) return;
 
 		try {
@@ -504,96 +546,104 @@ import Layout from '../../../layouts/Layout.astro';
 		}
 	}
 
-    function updateSelection() {
-        bulkBar.hidden = selected.size === 0;
-        document.querySelector('#selection-count').textContent = `${selected.size} seleccionadas`;
-        selectPage.checked = currentPhotos.length > 0 && selected.size === currentPhotos.length;
-        selectPage.indeterminate = selected.size > 0 && selected.size < currentPhotos.length;
-        selectPage.disabled = isLoading || bulkBusy || currentPhotos.length === 0;
-        for (const checkbox of grid.querySelectorAll<HTMLInputElement>('input[data-photo-id]')) {
-            checkbox.checked = selected.has(checkbox.dataset.photoId);
-            checkbox.disabled = isLoading || bulkBusy;
-        }
-        const chosen = currentPhotos.filter(photo => selected.has(photo.id));
-        for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('button')) {
-            button.disabled = bulkBusy || isLoading;
-            if (button.dataset.bulk === 'restore') button.hidden = !chosen.some(photo => photo.status === 'trash');
-            if (['publish', 'draft', 'trash'].includes(button.dataset.bulk)) button.hidden = !chosen.some(photo => photo.status !== 'trash');
-        }
-    }
+	function updateSelection() {
+		bulkBar.hidden = selected.size === 0;
+		document.querySelector('#selection-count').textContent = `${selected.size} seleccionadas`;
+		selectPage.checked = currentPhotos.length > 0 && selected.size === currentPhotos.length;
+		selectPage.indeterminate = selected.size > 0 && selected.size < currentPhotos.length;
+		selectPage.disabled = isLoading || bulkBusy || currentPhotos.length === 0;
+		for (const checkbox of grid.querySelectorAll<HTMLInputElement>('input[data-photo-id]')) {
+			checkbox.checked = selected.has(checkbox.dataset.photoId);
+			checkbox.disabled = isLoading || bulkBusy;
+		}
+		const chosen = currentPhotos.filter(photo => selected.has(photo.id));
+		for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('button')) {
+			button.disabled = bulkBusy || isLoading;
+			if (button.dataset.bulk === 'restore') button.hidden = !chosen.some(photo => photo.status === 'trash');
+			if (['publish', 'draft', 'trash'].includes(button.dataset.bulk)) button.hidden = !chosen.some(photo => photo.status !== 'trash');
+		}
+	}
 
-    function clearSelection() {
-        selected.clear();
-        categoryLabel.hidden = true;
-        bulkCategory.value = '';
-        updateSelection();
-    }
+	function clearSelection() {
+		selected.clear();
+		categoryLabel.hidden = true;
+		bulkCategory.value = '';
+		updateSelection();
+	}
 
-    selectPage.addEventListener('change', () => {
-        selected.clear();
-        if (selectPage.checked) currentPhotos.forEach(photo => selected.add(photo.id));
-        updateSelection();
-    });
-    document.querySelector('#choose-category').addEventListener('click', () => {
-        categoryLabel.hidden = !categoryLabel.hidden;
-        if (!categoryLabel.hidden) bulkCategory.focus();
-    });
-    for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('[data-bulk]')) {
-        button.addEventListener('click', () => runBulk(button.dataset.bulk));
-    }
-    async function runBulk(action: string) {
-        if (bulkBusy || isLoading || !selected.size) return;
-        if (action === 'move_category' && !bulkCategory.value) { setMessage('Elegí una categoría de destino.', 'error'); bulkCategory.focus(); return; }
-        if (['trash', 'draft'].includes(action) && !window.confirm(action === 'trash'
-            ? `¿Mover ${selected.size} fotografías a la papelera? Podrás restaurarlas después.`
-            : `¿Pasar ${selected.size} fotografías a borrador? Dejarán de mostrarse al público.`)) return;
-        bulkBusy = true;
-        // Lock the list while saving so filters and individual actions cannot race the batch.
-        document.querySelector('.toolbar').setAttribute('inert', '');
-        grid.setAttribute('inert', '');
-        document.querySelector('.pager').setAttribute('inert', '');
-        updateSelection();
-        setMessage('Guardando cambios…');
-        try {
-            const result = await adminFetch<{ updated: number; skipped: number; failed: number }>('/api/archivos-nava/admin/photos/bulk', {
-                method: 'POST', body: JSON.stringify({ ids: [...selected], action, ...(action === 'move_category' ? { categoryId: bulkCategory.value } : {}) }),
-            });
-            const refreshed = await loadPhotos();
-            const labels = { publish: 'publicadas', draft: 'pasadas a borrador', trash: 'movidas a papelera', restore: 'restauradas como borrador', move_category: 'cambiadas de categoría' };
-            setMessage(`${result.updated} fotos ${labels[action]}.${result.skipped ? ` ${result.skipped} sin cambios: ya estaban así o necesitan restaurarse primero.` : ''}${result.failed ? ` ${result.failed} no pudieron actualizarse.` : ''}${refreshed ? '' : ' Los cambios se guardaron, pero no pudimos refrescar la lista. Volvé a cargarla.'}`, refreshed ? 'success' : 'error');
-        } catch (error) {
-            if (!error?.authError) setMessage(resolveError(error), 'error');
-        } finally {
-            bulkBusy = false;
-            document.querySelector('.toolbar').removeAttribute('inert');
-            grid.removeAttribute('inert');
-            document.querySelector('.pager').removeAttribute('inert');
-            updateSelection();
-        }
-    }
-    function applyTextFilters() {
-        activeSearch = searchInput.value.trim(); activeYear = yearInput.value.trim(); currentPage = 1;
-        loadPhotos();
-    }
-    for (const input of [searchInput, yearInput]) input.addEventListener('input', () => {
-        // Invalidate responses and selection immediately, including during the debounce window.
-        requestVersion++; clearSelection(); isLoading = true; updateSelection(); updatePager();
-        setMessage('Buscando…');
-        clearTimeout(searchTimer); searchTimer = setTimeout(applyTextFilters, 350);
-    });
-    document.querySelector('#clear-filters').addEventListener('click', () => {
-        searchInput.value = ''; yearInput.value = ''; activeSearch = ''; activeYear = '';
-        activeCategory = ''; activeFilter = 'all'; currentPage = 1;
-        categoryFilter.value = ''; loadPhotos();
-    });
-    window.addEventListener('popstate', () => {
-        const params = new URLSearchParams(location.search);
-        activeSearch = params.get('search') || ''; activeYear = params.get('year') || '';
-        activeCategory = params.get('category') || ''; activeFilter = params.get('status') || 'all';
-        currentPage = Math.max(1, Number(params.get('page')) || 1);
-        searchInput.value = activeSearch; yearInput.value = activeYear; categoryFilter.value = activeCategory;
-        loadPhotos();
-    });
+	selectPage.addEventListener('change', () => {
+		selected.clear();
+		if (selectPage.checked) currentPhotos.forEach(photo => selected.add(photo.id));
+		updateSelection();
+	});
+	document.querySelector('#choose-category').addEventListener('click', () => {
+		categoryLabel.hidden = !categoryLabel.hidden;
+		if (!categoryLabel.hidden) bulkCategory.focus();
+	});
+	for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('[data-bulk]')) {
+		button.addEventListener('click', () => runBulk(button.dataset.bulk));
+	}
+	async function runBulk(action: string) {
+		if (bulkBusy || isLoading || !selected.size) return;
+		if (action === 'move_category' && !bulkCategory.value) { setMessage('Elegí una categoría de destino.', 'error'); bulkCategory.focus(); return; }
+		if (['trash', 'draft'].includes(action)) {
+			const confirmed = await confirmAction({
+				title: action === 'trash' ? `¿Mover ${selected.size} fotografías a la papelera?` : `¿Pasar ${selected.size} fotografías a borrador?`,
+				message: action === 'trash'
+					? 'Podrás restaurarlas después desde la pestaña Papelera.'
+					: 'Dejarán de mostrarse inmediatamente al público.',
+				confirmText: action === 'trash' ? 'Mover a papelera' : 'Pasar a borrador',
+				danger: action === 'trash',
+			});
+			if (!confirmed) return;
+		}
+		bulkBusy = true;
+		document.querySelector('.toolbar').setAttribute('inert', '');
+		grid.setAttribute('inert', '');
+		document.querySelector('.pager').setAttribute('inert', '');
+		updateSelection();
+		setMessage('Guardando cambios…');
+		try {
+			const result = await adminFetch<{ updated: number; skipped: number; failed: number }>('/api/archivos-nava/admin/photos/bulk', {
+				method: 'POST', body: JSON.stringify({ ids: [...selected], action, ...(action === 'move_category' ? { categoryId: bulkCategory.value } : {}) }),
+			});
+			const refreshed = await loadPhotos();
+			const labels = { publish: 'publicadas', draft: 'pasadas a borrador', trash: 'movidas a papelera', restore: 'restauradas como borrador', move_category: 'cambiadas de categoría' };
+			setMessage(`${result.updated} fotos ${labels[action]}.${result.skipped ? ` ${result.skipped} sin cambios: ya estaban así o necesitan restaurarse primero.` : ''}${result.failed ? ` ${result.failed} no pudieron actualizarse.` : ''}${refreshed ? '' : ' Los cambios se guardaron, pero no pudimos refrescar la lista. Volvé a cargarla.'}`, refreshed ? 'success' : 'error');
+		} catch (error) {
+			if (!error?.authError) setMessage(resolveError(error), 'error');
+		} finally {
+			bulkBusy = false;
+			document.querySelector('.toolbar').removeAttribute('inert');
+			grid.removeAttribute('inert');
+			document.querySelector('.pager').removeAttribute('inert');
+			updateSelection();
+		}
+	}
+	function applyTextFilters() {
+		activeSearch = searchInput.value.trim(); activeYear = yearInput.value.trim(); currentPage = 1;
+		loadPhotos();
+	}
+	for (const input of [searchInput, yearInput]) input.addEventListener('input', () => {
+		requestVersion++; clearSelection(); isLoading = true; updateSelection(); updatePager();
+		setMessage('Buscando…');
+		clearTimeout(searchTimer); searchTimer = setTimeout(applyTextFilters, 350);
+	});
+	document.querySelector('#clear-filters').addEventListener('click', () => {
+		searchInput.value = ''; yearInput.value = ''; activeSearch = ''; activeYear = '';
+		activeCategory = ''; activeFilter = 'all'; currentPage = 1;
+		if (categoryFilter instanceof HTMLSelectElement) categoryFilter.value = '';
+		loadPhotos();
+	});
+	window.addEventListener('popstate', () => {
+		const params = new URLSearchParams(location.search);
+		activeSearch = params.get('search') || ''; activeYear = params.get('year') || '';
+		activeCategory = params.get('category') || ''; activeFilter = params.get('status') || 'all';
+		currentPage = Math.max(1, Number(params.get('page')) || 1);
+		searchInput.value = activeSearch; yearInput.value = activeYear;
+		if (categoryFilter instanceof HTMLSelectElement) categoryFilter.value = activeCategory;
+		loadPhotos();
+	});
 
 	for (const button of filterButtons) {
 		button.addEventListener('click', () => {
@@ -636,145 +686,268 @@ import Layout from '../../../layouts/Layout.astro';
 </script>
 
 <style>
-    .toolbar label { display: grid; gap: 6px; max-width: 100%; }
-    .search-field { flex: 1 1 280px; }
-    .toolbar input { min-width: 0; width: 100%; }
-    #year-filter { max-width: 120px; }
-    #year-error { color: #ffb4ab; }
-    .select-page { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 12px; }
-    .action-area { position: sticky; top: 0; z-index: 10; background: #10100f; }
-    .message-banner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin: 0 0 16px;
-        padding: 12px 16px;
-        border-radius: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: #181818;
-    }
-    .message-banner[data-type="success"] {
-        border-color: rgba(184, 231, 201, 0.45);
-        background: rgba(184, 231, 201, 0.08);
-        color: #b8e7c9;
-    }
-    .message-banner[data-type="error"] {
-        border-color: rgba(255, 180, 169, 0.45);
-        background: rgba(255, 180, 169, 0.08);
-        color: #ffb4a9;
-    }
-    .message-banner[data-type="neutral"] {
-        border-color: rgba(245, 245, 245, 0.2);
-        background: rgba(255, 255, 255, 0.04);
-        color: rgba(245, 245, 245, 0.85);
-    }
-    .message-banner .message {
-        margin: 0;
-        padding: 0;
-        font-size: 0.92rem;
-        line-height: 1.45;
-        flex: 1 1 auto;
-    }
-    .dismiss-message {
-        background: transparent;
-        border: 0;
-        color: inherit;
-        font-size: 1.25rem;
-        line-height: 1;
-        cursor: pointer;
-        padding: 2px 6px;
-        opacity: 0.7;
-        border-radius: 4px;
-        flex-shrink: 0;
-    }
-    .dismiss-message:hover {
-        opacity: 1;
-        background: rgba(255, 255, 255, 0.1);
-    }
-    .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; margin-bottom: 18px; border: 1px solid #999; border-radius: 8px; background: #222; }
-    [hidden] { display: none !important; }
-    :global(.photo-select) { display: flex; align-items: center; gap: 10px; min-height: 44px; overflow-wrap: anywhere; }
-    :global(input[type="checkbox"]) { width: 22px; height: 22px; flex: 0 0 22px; }
-
 	.toolbar {
+		display: grid;
+		gap: 14px;
+		padding: 18px 20px;
+		margin-bottom: 20px;
+		border: 1px solid var(--border);
+		border-top: 2px solid var(--accent);
+		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.toolbar-top {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: end;
-		gap: 10px;
-		margin-bottom: 22px;
+		align-items: flex-end;
+		gap: 14px;
 	}
 
-	.category-filter {
+	.toolbar label {
 		display: grid;
 		gap: 6px;
-		min-width: min(100%, 220px);
-		margin-left: auto;
-	}
-
-	.category-filter span {
-		color: rgba(245, 245, 245, 0.58);
-		font-size: 0.72rem;
+		max-width: 100%;
+		font-family: var(--font-mono);
+		font-size: 0.7rem;
 		font-weight: 600;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
+		color: var(--text-secondary);
+	}
+
+	.search-field {
+		flex: 1 1 260px;
+	}
+
+	.year-field {
+		width: 120px;
+	}
+
+	.category-filter {
+		min-width: min(100%, 220px);
+	}
+
+	#year-error {
+		color: var(--danger);
+		font-size: 0.82rem;
+	}
+
+	.toolbar-bottom {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 12px;
+		padding-top: 12px;
+		border-top: 1px dashed var(--border);
+	}
+
+	.status-tabs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 
 	.filter-button {
-		border: 1px solid rgba(255, 255, 255, 0.18);
-		color: #f5f5f5;
-		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		padding: 7px 14px;
+		color: var(--text-secondary);
+		background: var(--surface);
+		font-size: 0.82rem;
+		font-weight: 500;
+	}
+
+	.filter-button:hover:not(:disabled) {
+		border-color: var(--accent);
+		color: var(--text);
+		background: var(--surface-hover);
 	}
 
 	.filter-button[aria-pressed="true"] {
-		color: #101010;
-		background: #f5f5f5;
+		border-color: var(--accent);
+		color: #14110d;
+		background: var(--accent);
+		font-weight: 600;
+	}
+
+	.select-page {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 40px;
+		margin-bottom: 14px;
+		cursor: pointer;
+	}
+
+	.action-area {
+		position: sticky;
+		top: 72px;
+		z-index: 20;
+	}
+
+	.message-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin: 0 0 16px;
+		padding: 12px 16px;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--border);
+		background: var(--surface-card);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.message-banner[data-type="success"] {
+		border-color: var(--success-border);
+		background: var(--success-bg);
+		color: var(--success);
+	}
+
+	.message-banner[data-type="error"] {
+		border-color: var(--danger-border);
+		background: var(--danger-bg);
+		color: var(--danger);
+	}
+
+	.message-banner .message {
+		margin: 0;
+		padding: 0;
+		font-size: 0.9rem;
+		line-height: 1.45;
+		flex: 1 1 auto;
+	}
+
+	.dismiss-message {
+		background: transparent;
+		border: 0;
+		color: inherit;
+		font-size: 1.25rem;
+		line-height: 1;
+		cursor: pointer;
+		padding: 2px 8px;
+		opacity: 0.75;
+		border-radius: var(--radius-xs);
+		flex-shrink: 0;
+	}
+
+	.dismiss-message:hover {
+		opacity: 1;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.bulk-bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
+		padding: 14px 18px;
+		margin-bottom: 16px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		box-shadow: var(--shadow-md);
+	}
+
+	.bulk-cat-inline {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.bulk-cat-controls {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	:global(.photo-select) {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		color: var(--film-stamp);
+		cursor: pointer;
+	}
+
+	:global(input[type="checkbox"]) {
+		width: 18px;
+		height: 18px;
+		flex: 0 0 18px;
+		accent-color: var(--accent);
 	}
 
 	.photo-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-		gap: 16px;
+		grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
+		gap: 20px;
 	}
 
-	:global(.photo-card) {
-		display: grid;
+	:global(.admin-photo-card) {
+		display: flex;
+		flex-direction: column;
 		overflow: hidden;
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 8px;
-		background: #171716;
+		padding: 10px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		box-shadow: var(--shadow-sm);
+		transition: border-color 180ms ease, box-shadow 180ms ease;
 	}
 
-	:global(.photo-card img) {
+	:global(.admin-photo-card:hover) {
+		border-color: var(--border-strong);
+	}
+
+	:global(.admin-card-strip) {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 2px 4px 8px;
+	}
+
+	:global(.admin-photo-card img) {
 		width: 100%;
 		height: auto;
-        aspect-ratio: 4 / 3;
+		aspect-ratio: 4 / 3;
 		object-fit: cover;
-		background: #0b0b0b;
+		border-radius: var(--radius-xs);
+		border: 1px solid var(--border-subtle);
+		background: #080706;
 	}
 
-	:global(.photo-card-body) {
-		display: grid;
-		gap: 10px;
-		padding: 14px;
+	:global(.admin-photo-card .photo-card-body) {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 12px 4px 4px;
+		flex: 1 1 auto;
 	}
 
-	:global(.photo-card h2) {
+	:global(.admin-photo-card h2) {
 		margin: 0;
 		overflow: hidden;
-		color: #f5f5f5;
-		font-size: 1rem;
-		font-weight: 600;
-		line-height: 1.35;
+		color: var(--text);
+		font-family: var(--font-serif);
+		font-size: 1.06rem;
+		font-weight: 500;
+		line-height: 1.3;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	:global(.photo-card p) {
+	:global(.admin-photo-card p) {
 		margin: 0;
 		overflow: hidden;
-		color: rgba(245, 245, 245, 0.62);
-		font-size: 0.82rem;
+		color: var(--text-secondary);
+		font-family: var(--font-mono);
+		font-size: 0.74rem;
 		line-height: 1.45;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -783,35 +956,37 @@ import Layout from '../../../layouts/Layout.astro';
 	:global(.photo-actions) {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
-		margin-top: 4px;
+		gap: 6px;
+		margin-top: auto;
+		padding-top: 8px;
 	}
 
 	:global(.photo-badges) {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
+		gap: 6px;
 	}
 
 	:global(.cover-pill) {
-		border-color: rgba(245, 245, 245, 0.62);
-		background: rgba(245, 245, 245, 0.1);
-		color: #f5f5f5;
+		border-color: var(--border-strong);
+		background: var(--accent-subtle);
+		color: var(--accent);
 	}
 
 	:global(.photo-actions a),
 	:global(.photo-actions button) {
-		flex: 1 1 112px;
+		padding: 6px 10px;
+		font-size: 0.76rem;
 		text-align: center;
-		white-space: normal;
 	}
 
 	:global(.empty-state) {
 		grid-column: 1 / -1;
-		border: 1px dashed rgba(255, 255, 255, 0.18);
-		border-radius: 8px;
-		padding: 36px;
-		color: rgba(245, 245, 245, 0.62);
+		border: 1px dashed var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		padding: 40px 24px;
+		color: var(--text-secondary);
 		text-align: center;
 	}
 
@@ -820,21 +995,24 @@ import Layout from '../../../layouts/Layout.astro';
 		align-items: center;
 		justify-content: center;
 		gap: 14px;
-		margin-top: 26px;
-		color: rgba(245, 245, 245, 0.66);
+		margin-top: 32px;
+		color: var(--text-secondary);
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
 	}
 
-	@media (max-width: 560px) {
-        .search-field { flex-basis: auto; }
-		.toolbar,
+	@media (max-width: 620px) {
+		.search-field,
+		.year-field,
+		.category-filter {
+			flex-basis: 100%;
+			width: 100%;
+		}
+
+		.toolbar-top,
 		.pager {
 			align-items: stretch;
 			flex-direction: column;
-		}
-
-		.toolbar button,
-		.pager button {
-			width: 100%;
 		}
 	}
 </style>

@@ -52,9 +52,15 @@ const {
         })();
     </script>}
 
-	<meta name="viewport" content="width=device-width" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta name="description" content={description} />
 	<link rel="icon" href="/favicon.svg" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link
+		href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+		rel="stylesheet"
+	/>
 	<meta name="generator" content={Astro.generator} />
 	<title>{title}</title>
 </head>
@@ -65,28 +71,89 @@ const {
 </html>
 
 <style is:global>
+	@media (prefers-reduced-motion: no-preference) {
+		@view-transition {
+			navigation: auto;
+		}
+	}
+
 	:root {
-		--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-		--font-serif: "Newsreader", "Playfair Display", "Georgia", "Times New Roman", serif;
-		--font-mono: ui-monospace, "SF Mono", "Menlo", monospace;
+		--font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+		--font-serif: "Newsreader", "Georgia", "Times New Roman", serif;
+		--font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Menlo", monospace;
 
 		font-family: var(--font-sans);
 
-		--background: #0b0b0b;
-		--background-secondary: #121212;
-		--surface: #181818;
-		--surface-card: #141414;
-		--surface-subtle: #202020;
-		--text: #f5f5f5;
-		--text-secondary: #a4a4a4;
-		--border: #444;
-		--border-subtle: rgba(255, 255, 255, 0.1);
-		--accent: #e6d5b8;
-		--accent-subtle: rgba(230, 213, 184, 0.12);
-		--header-background: rgb(11 11 11 / 94%);
+		/* Analog Darkroom & Contact Sheet Palette (70s-90s Cinema & Recitals) */
+		--background: #0d0c0a;
+		--background-secondary: #13110e;
+		--bg: var(--background);
+		--surface: #171511;
+		--surface-card: #1b1814;
+		--surface-subtle: #231f1a;
+		--surface-hover: #27221c;
+		--surface-elevated: #221e18;
+		--text: #f3ede2;
+		--text-secondary: #b0a695;
+		--text-muted: #7e7567;
+		--border: #383127;
+		--border-subtle: rgba(235, 214, 180, 0.13);
+		--border-strong: rgba(223, 169, 96, 0.42);
+		--accent: #dfa960;
+		--accent-strong: #ecc07e;
+		--accent-subtle: rgba(223, 169, 96, 0.14);
+		--accent-glow: rgba(223, 169, 96, 0.22);
+		--film-stamp: #d48848;
+		--danger: #ff9e91;
+		--danger-bg: rgba(255, 158, 145, 0.1);
+		--danger-border: rgba(255, 158, 145, 0.38);
+		--success: #a8e0bc;
+		--success-bg: rgba(168, 224, 188, 0.1);
+		--success-border: rgba(168, 224, 188, 0.38);
+		--header-background: rgba(13, 12, 10, 0.88);
+		--shadow-sm: 0 6px 20px rgba(0, 0, 0, 0.32);
+		--shadow-md: 0 14px 36px rgba(0, 0, 0, 0.45);
+		--shadow-lighttable: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(223, 169, 96, 0.35), 0 0 28px rgba(223, 169, 96, 0.1);
+		--radius-xs: 3px;
+		--radius-sm: 6px;
+		--radius-md: 10px;
 		color-scheme: dark;
 		background: var(--background);
 		color: var(--text);
+	}
+
+	:root[data-theme='light'] {
+		/* Archival Cotton Paper & Physical Index Card Palette */
+		--background: #f5f0e6;
+		--background-secondary: #ebe4d6;
+		--bg: var(--background);
+		--surface: #e8e0d0;
+		--surface-card: #fbf8f2;
+		--surface-subtle: #dfd6c5;
+		--surface-hover: #efe8da;
+		--surface-elevated: #ffffff;
+		--text: #1c1814;
+		--text-secondary: #5c5347;
+		--text-muted: #827768;
+		--border: #c5b9a5;
+		--border-subtle: rgba(45, 35, 20, 0.13);
+		--border-strong: rgba(140, 90, 43, 0.45);
+		--accent: #8c5a2b;
+		--accent-strong: #6e431b;
+		--accent-subtle: rgba(140, 90, 43, 0.11);
+		--accent-glow: rgba(140, 90, 43, 0.18);
+		--film-stamp: #9e4f20;
+		--danger: #b33628;
+		--danger-bg: rgba(179, 54, 40, 0.08);
+		--danger-border: rgba(179, 54, 40, 0.35);
+		--success: #1f6e3f;
+		--success-bg: rgba(31, 110, 63, 0.08);
+		--success-border: rgba(31, 110, 63, 0.35);
+		--header-background: rgba(245, 240, 230, 0.9);
+		--shadow-sm: 0 4px 16px rgba(35, 26, 14, 0.07);
+		--shadow-md: 0 12px 32px rgba(35, 26, 14, 0.12);
+		--shadow-lighttable: 0 14px 34px rgba(35, 26, 14, 0.14), 0 0 0 1px rgba(140, 90, 43, 0.4);
+		color-scheme: light;
 	}
 
 	html,
@@ -102,6 +169,21 @@ const {
 
 	body {
 		min-height: 100vh;
+		position: relative;
+		background-image:
+			radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-subtle), transparent 70%);
+		background-attachment: fixed;
+	}
+
+	/* Subtle analog film grain overlay */
+	body::before {
+		content: "";
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 9999;
+		opacity: 0.028;
+		background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 	}
 
 	*,
@@ -138,32 +220,117 @@ const {
 		letter-spacing: -0.015em;
 	}
 
-	/* Retain sans-serif for admin workspace headings */
-	.admin-shell h1,
+	/* Retain clean sans-serif for admin workspace headings while keeping editorial soul */
 	.admin-shell h2,
 	.admin-shell h3,
-	.admin-login h1,
 	.admin-login h2 {
 		font-family: var(--font-sans);
-		letter-spacing: normal;
+		letter-spacing: -0.01em;
 	}
-</style>
-<style is:global>
-    :root[data-theme='light'] {
-        --background: #f7f6f2;
-        --background-secondary: #edece6;
-        --surface: #e8e7e1;
-        --surface-card: #fdfdfc;
-        --surface-subtle: #dfded7;
-        --text: #1d1d1a;
-        --text-secondary: #585850;
-        --border: #8a8a80;
-        --border-subtle: rgba(0, 0, 0, 0.1);
-        --accent: #655132;
-        --accent-subtle: rgba(101, 81, 50, 0.1);
-        --header-background: rgb(247 246 242 / 94%);
-        color-scheme: light;
-    }
-    :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-    [hidden] { display: none !important; }
+
+	:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
+	}
+
+	[hidden] {
+		display: none !important;
+	}
+
+	[inert],
+	[inert] * {
+		opacity: 0.55;
+		cursor: default;
+		user-select: none;
+	}
+
+	/* Modern HTML5 Top-Layer Dialog & Scroll Containment */
+	dialog:modal {
+		overscroll-behavior: contain;
+	}
+
+	dialog::backdrop {
+		overflow: hidden;
+		overscroll-behavior: contain;
+		background-color: rgba(8, 7, 5, 0);
+		backdrop-filter: blur(0px);
+		transition-property: background-color, backdrop-filter, display, overlay;
+		transition-duration: 0.26s;
+		transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+		transition-behavior: allow-discrete;
+	}
+
+	dialog {
+		opacity: 0;
+		transition-property: opacity, transform, display, overlay;
+		transition-duration: 0.26s;
+		transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+		transition-behavior: allow-discrete;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		dialog {
+			transform: scale(0.96) translateY(6px);
+		}
+	}
+
+	:is(dialog[open]):where(:not([data-closing])) {
+		opacity: 1;
+
+		@starting-style {
+			opacity: 0;
+		}
+
+		@media (prefers-reduced-motion: no-preference) {
+			transform: scale(1) translateY(0);
+
+			@starting-style {
+				transform: scale(0.96) translateY(6px);
+			}
+		}
+
+		&::backdrop {
+			background-color: rgba(8, 7, 5, 0.84);
+			backdrop-filter: blur(6px);
+
+			@starting-style {
+				background-color: rgba(8, 7, 5, 0);
+				backdrop-filter: blur(0px);
+			}
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		dialog,
+		dialog::backdrop {
+			transition-duration: 0.1s;
+		}
+	}
+
+	/* Staggered Contact-Sheet Card Entry Animation */
+	@keyframes frame-reveal {
+		from {
+			opacity: 0;
+			transform: translateY(14px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.stagger-grid > * {
+			animation: frame-reveal 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
+		}
+		.stagger-grid > *:nth-child(1) { animation-delay: 20ms; }
+		.stagger-grid > *:nth-child(2) { animation-delay: 55ms; }
+		.stagger-grid > *:nth-child(3) { animation-delay: 90ms; }
+		.stagger-grid > *:nth-child(4) { animation-delay: 125ms; }
+		.stagger-grid > *:nth-child(5) { animation-delay: 160ms; }
+		.stagger-grid > *:nth-child(6) { animation-delay: 195ms; }
+		.stagger-grid > *:nth-child(7) { animation-delay: 225ms; }
+		.stagger-grid > *:nth-child(8) { animation-delay: 255ms; }
+		.stagger-grid > *:nth-child(n+9) { animation-delay: 280ms; }
+	}
 </style>

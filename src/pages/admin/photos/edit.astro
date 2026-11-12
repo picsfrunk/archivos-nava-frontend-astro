@@ -5,21 +5,47 @@ import Layout from '../../../layouts/Layout.astro';
 
 <Layout title="Editar fotografía | ARCHIVOS NAVA" description="Edición de fotografía.">
 	<AdminShell title="Editar fotografía" active="photos">
-		<a class="back-link" href="/admin/photos">Volver al listado</a>
+		<a class="back-link" href="/admin/photos">← Volver al listado de fotografías</a>
 
 		<div id="editor" class="editor is-loading">
 			<section class="image-panel" aria-label="Imagen actual">
-				<img id="photo-image" alt="" />
+				<div class="mount-header" aria-hidden="true">
+					<span>▲ INSPECCIÓN DE NEGATIVO</span>
+					<span>ARCHIVOS NAVA</span>
+				</div>
+				<div class="image-stage">
+					<img id="photo-image" alt="" />
+				</div>
 			</section>
 
 			<form id="edit-form" class="edit-form" novalidate>
+				<div class="form-head">
+					<span class="form-kicker">FICHA EDITORIAL</span>
+					<h2>Metadatos de la fotografía</h2>
+				</div>
+
 				<label>
 					<span>Título</span>
 					<input id="title" name="title" type="text" autocomplete="off" />
 				</label>
+				<div class="split-row">
+					<label>
+						<span>Año</span>
+						<input id="year" name="year" type="number" inputmode="numeric" />
+					</label>
+					<label id="status-label">
+						<span>Estado</span>
+						<select id="status" name="status">
+							<option value="draft">Borrador</option>
+							<option value="published">Publicada</option>
+						</select>
+					</label>
+				</div>
 				<label>
-					<span>Año</span>
-					<input id="year" name="year" type="number" inputmode="numeric" />
+					<span>Categoría / Rollo</span>
+					<select id="category" name="category" required>
+						<option value="">Cargando categorías...</option>
+					</select>
 				</label>
 				<label>
 					<span>Epígrafe</span>
@@ -29,22 +55,10 @@ import Layout from '../../../layouts/Layout.astro';
 					<span>Descripción</span>
 					<textarea id="description" name="description" rows="5"></textarea>
 				</label>
-				<label>
-					<span>Categoría</span>
-					<select id="category" name="category" required>
-						<option value="">Cargando categorías...</option>
-					</select>
-				</label>
-				<label id="status-label">
-					<span>Estado</span>
-					<select id="status" name="status">
-						<option value="draft">Borrador</option>
-						<option value="published">Publicada</option>
-					</select>
-				</label>
 
 				<div class="actions">
-					<button type="submit">Guardar cambios</button>
+					<a class="secondary-button" href="/admin/photos">Cancelar</a>
+					<button type="submit" class="primary-button">Guardar cambios</button>
 				</div>
 			</form>
 		</div>
@@ -172,7 +186,7 @@ import Layout from '../../../layouts/Layout.astro';
 			return;
 		}
 
-		const payload = {
+		const payload: Record<string, unknown> = {
 			title: String(data.get('title') || '').trim(),
 			year: String(data.get('year') || '').trim(),
 			caption: String(data.get('caption') || '').trim(),
@@ -217,47 +231,105 @@ import Layout from '../../../layouts/Layout.astro';
 	.back-link {
 		display: inline-flex;
 		margin-bottom: 20px;
-		color: rgba(245, 245, 245, 0.7);
-		text-decoration: underline;
+		color: var(--text-secondary);
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		transition: color 150ms ease;
+	}
+
+	.back-link:hover {
+		color: var(--accent);
 	}
 
 	.editor {
 		display: grid;
-		grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1fr);
+		grid-template-columns: minmax(280px, 1fr) minmax(320px, 0.95fr);
 		gap: 24px;
 	}
 
 	.image-panel,
 	.edit-form {
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 8px;
-		background: #171716;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-card);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.image-panel {
+		display: flex;
+		flex-direction: column;
+		padding: 18px;
+	}
+
+	.mount-header {
+		display: flex;
+		justify-content: space-between;
+		padding: 0 4px 10px;
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.12em;
+		color: var(--film-stamp);
+	}
+
+	.image-stage {
 		display: grid;
 		place-items: center;
-		min-height: 520px;
-		padding: 18px;
+		flex: 1 1 auto;
+		min-height: 440px;
+		padding: 14px;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-xs);
+		background: #080706;
 	}
 
 	.image-panel img {
 		width: 100%;
-		max-height: 680px;
-		border-radius: 6px;
+		max-height: 620px;
+		border-radius: var(--radius-xs);
 		object-fit: contain;
 	}
 
 	.edit-form {
 		display: grid;
-		gap: 18px;
+		gap: 16px;
 		align-self: start;
 		padding: 24px;
+		border-top: 3px solid var(--accent);
+	}
+
+	.form-head {
+		padding-bottom: 12px;
+		border-bottom: 1px dashed var(--border);
+	}
+
+	.form-kicker {
+		display: block;
+		margin-bottom: 4px;
+		font-family: var(--font-mono);
+		font-size: 0.66rem;
+		letter-spacing: 0.14em;
+		color: var(--film-stamp);
+	}
+
+	.form-head h2 {
+		margin: 0;
+		font-size: 1.15rem;
+		font-weight: 600;
+	}
+
+	.split-row {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px;
 	}
 
 	.actions {
 		display: flex;
 		justify-content: flex-end;
+		gap: 10px;
+		padding-top: 8px;
 	}
 
 	@media (max-width: 820px) {
@@ -265,15 +337,18 @@ import Layout from '../../../layouts/Layout.astro';
 			grid-template-columns: 1fr;
 		}
 
-		.image-panel {
-			min-height: 300px;
+		.image-stage {
+			min-height: 280px;
 		}
 	}
 
 	@media (max-width: 540px) {
-		.actions,
-		.actions button {
-			width: 100%;
+		.split-row {
+			grid-template-columns: 1fr;
+		}
+
+		.actions {
+			flex-direction: column;
 		}
 	}
 </style>
