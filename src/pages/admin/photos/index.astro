@@ -688,6 +688,7 @@ import Layout from '../../../layouts/Layout.astro';
 <style>
 	.toolbar {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 14px;
 		padding: 18px 20px;
 		margin-bottom: 20px;
@@ -699,15 +700,16 @@ import Layout from '../../../layouts/Layout.astro';
 	}
 
 	.toolbar-top {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-end;
+		display: grid;
+		grid-template-columns: minmax(220px, 1fr) 120px minmax(190px, 240px) auto;
+		align-items: end;
 		gap: 14px;
 	}
 
 	.toolbar label {
 		display: grid;
 		gap: 6px;
+		min-width: 0;
 		max-width: 100%;
 		font-family: var(--font-mono);
 		font-size: 0.7rem;
@@ -717,21 +719,20 @@ import Layout from '../../../layouts/Layout.astro';
 		color: var(--text-secondary);
 	}
 
-	.search-field {
-		flex: 1 1 260px;
-	}
-
-	.year-field {
-		width: 120px;
-	}
-
+	.search-field,
+	.year-field,
 	.category-filter {
-		min-width: min(100%, 220px);
+		min-width: 0;
+		width: 100%;
 	}
 
 	#year-error {
 		color: var(--danger);
 		font-size: 0.82rem;
+	}
+
+	#year-error:empty {
+		display: none;
 	}
 
 	.toolbar-bottom {
@@ -747,13 +748,14 @@ import Layout from '../../../layouts/Layout.astro';
 	.status-tabs {
 		display: flex;
 		flex-wrap: wrap;
+		flex-wrap: balance;
 		gap: 8px;
 	}
 
 	.filter-button {
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
-		padding: 7px 14px;
+		padding: 8px 14px;
 		color: var(--text-secondary);
 		background: var(--surface);
 		font-size: 0.82rem;
@@ -777,7 +779,7 @@ import Layout from '../../../layouts/Layout.astro';
 		display: inline-flex;
 		align-items: center;
 		gap: 10px;
-		min-height: 40px;
+		min-height: 44px;
 		margin-bottom: 14px;
 		cursor: pointer;
 	}
@@ -994,6 +996,7 @@ import Layout from '../../../layouts/Layout.astro';
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		flex-wrap: wrap;
 		gap: 14px;
 		margin-top: 32px;
 		color: var(--text-secondary);
@@ -1001,18 +1004,93 @@ import Layout from '../../../layouts/Layout.astro';
 		font-size: 0.8rem;
 	}
 
-	@media (max-width: 620px) {
-		.search-field,
-		.year-field,
+	@media (max-width: 860px) {
+		.toolbar-top {
+			grid-template-columns: minmax(0, 1fr) 120px;
+		}
+
+		.search-field {
+			grid-column: 1 / -1;
+		}
+
 		.category-filter {
-			flex-basis: 100%;
+			grid-column: 1 / 2;
+		}
+
+		#clear-filters {
+			grid-column: 2 / 3;
 			width: 100%;
 		}
 
-		.toolbar-top,
-		.pager {
-			align-items: stretch;
+		.action-area {
+			top: 12px;
+		}
+	}
+
+	@media (max-width: 620px) {
+		.toolbar {
+			padding: 14px;
+			gap: 12px;
+		}
+
+		.toolbar-top {
+			grid-template-columns: 108px minmax(0, 1fr);
+			gap: 10px;
+		}
+
+		.search-field {
+			grid-column: 1 / -1;
+		}
+
+		.year-field {
+			grid-column: 1 / 2;
+		}
+
+		.category-filter {
+			grid-column: 2 / 3;
+		}
+
+		#clear-filters {
+			grid-column: 1 / -1;
+			width: 100%;
+		}
+
+		.status-tabs {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			width: 100%;
+		}
+
+		.filter-button {
+			width: 100%;
+			justify-content: center;
+		}
+
+		#empty-trash-button {
+			width: 100%;
+		}
+
+		.bulk-bar {
+			padding: 12px;
+			gap: 8px;
+		}
+
+		.bulk-bar > strong {
+			width: 100%;
+		}
+
+		.bulk-cat-inline,
+		.bulk-cat-controls {
+			width: 100%;
+		}
+
+		.bulk-cat-controls {
 			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.pager {
+			justify-content: space-between;
 		}
 	}
 </style>

@@ -15,7 +15,7 @@ import Layout from '../../../layouts/Layout.astro';
 					<button id="new-category-button" class="primary-button" type="button">+ Nueva categoría</button>
 				</div>
 
-				<div class="table-wrap">
+				<div class="table-wrap" tabindex="0" role="region" aria-labelledby="category-list-title">
 					<table>
 						<thead>
 							<tr>
@@ -350,7 +350,12 @@ import Layout from '../../../layouts/Layout.astro';
 
 		form.dataset.mode = category ? 'edit' : 'create';
 		if (clearMessage) setMessage('');
-		if (category) loadCoverOptions(category);
+		if (category) {
+			loadCoverOptions(category);
+			if (window.innerWidth <= 960) {
+				form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			}
+		}
 	}
 
 	function categoryLabel(category) {
@@ -838,12 +843,18 @@ import Layout from '../../../layouts/Layout.astro';
 
 	.table-wrap {
 		overflow-x: auto;
+		max-inline-size: 100%;
+		container-type: inline-size;
 	}
 
 	table {
 		width: 100%;
 		border-collapse: collapse;
-		min-width: 740px;
+		min-width: 720px;
+		--label-2: "Slug";
+		--label-3: "Orden";
+		--label-4: "Portada";
+		--label-5: "Estado";
 	}
 
 	th,
@@ -1297,6 +1308,94 @@ import Layout from '../../../layouts/Layout.astro';
 		}
 	}
 
+	@container (width < 660px) {
+		table,
+		thead,
+		tbody,
+		:global(#category-table tr),
+		:global(#category-table td) {
+			display: block;
+			min-width: 0;
+		}
+
+		thead {
+			display: none;
+		}
+
+		:global(#category-table) {
+			display: grid;
+			gap: 12px;
+			padding: 12px;
+		}
+
+		:global(#category-table tr) {
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			background: var(--surface);
+			overflow: hidden;
+		}
+
+		:global(#category-table td) {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 10px 14px;
+			border-top: 1px dotted var(--border-subtle);
+		}
+
+		:global(#category-table td:first-child) {
+			border-top: 0;
+			padding: 12px 14px;
+			background: rgba(0, 0, 0, 0.14);
+		}
+
+		:global(#category-table td:nth-child(2))::before {
+			content: var(--label-2) ": ";
+			font-family: var(--font-mono);
+			font-size: 0.68rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			color: var(--text-muted);
+		}
+
+		:global(#category-table td:nth-child(3))::before {
+			content: var(--label-3) ": ";
+			font-family: var(--font-mono);
+			font-size: 0.68rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			color: var(--text-muted);
+		}
+
+		:global(#category-table td:nth-child(4))::before {
+			content: var(--label-4) ": ";
+			font-family: var(--font-mono);
+			font-size: 0.68rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			color: var(--text-muted);
+		}
+
+		:global(#category-table td:nth-child(5))::before {
+			content: var(--label-5) ": ";
+			font-family: var(--font-mono);
+			font-size: 0.68rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			color: var(--text-muted);
+		}
+
+		:global(#category-table td:last-child) {
+			border-top: 1px solid var(--border-subtle);
+			padding: 12px 14px;
+		}
+
+		:global(.row-actions) {
+			width: 100%;
+		}
+	}
+
 	@media (max-width: 620px) {
 		.panel-heading,
 		.form-actions {
@@ -1307,6 +1406,10 @@ import Layout from '../../../layouts/Layout.astro';
 		.panel-heading button,
 		.form-actions button {
 			width: 100%;
+		}
+
+		.form-row-split {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
