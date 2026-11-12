@@ -34,6 +34,7 @@ export type PhotoRecord = RecordModel & {
 export type PublicCategory = CategoryRecord & {
 	photoCount: number;
 	coverPhoto: PhotoRecord | null;
+	firstPhotoId: string | null;
 };
 
 export function isPublicCategory(category?: CategoryRecord | null) {
@@ -114,14 +115,17 @@ export async function getPublicCategories() {
 				}
 			}
 
+			const firstEditorialPhoto = firstPage.items.find(isPublicPhoto) ?? null;
+
 			if (!coverPhoto) {
-				coverPhoto = firstPage.items.find(isPublicPhoto) ?? null;
+				coverPhoto = firstEditorialPhoto;
 			}
 
 			return {
 				...category,
 				photoCount: coverPhoto ? firstPage.totalItems : 0,
 				coverPhoto,
+				firstPhotoId: firstEditorialPhoto?.id ?? coverPhoto?.id ?? null,
 			};
 		}),
 	);
@@ -222,7 +226,7 @@ export async function getPublicPhotoById(id: string) {
 export async function getPublicPhotoNavigation(photo: PhotoRecord) {
 	const categoryId = photo.expand?.category?.id || photo.category;
 	if (!categoryId || !isPublicPhoto(photo)) {
-		return { previous: null, next: null };
+		return { previous: null, next: null, position: 0, total: 0 };
 	}
 
 	const photos = await pb.collection('photos').getFullList<PhotoRecord>({
@@ -236,12 +240,14 @@ export async function getPublicPhotoNavigation(photo: PhotoRecord) {
 	const currentIndex = publicPhotos.findIndex((item) => item.id === photo.id);
 
 	if (currentIndex === -1) {
-		return { previous: null, next: null };
+		return { previous: null, next: null, position: 0, total: publicPhotos.length };
 	}
 
 	return {
 		previous: publicPhotos[currentIndex - 1] ?? null,
 		next: publicPhotos[currentIndex + 1] ?? null,
+		position: currentIndex + 1,
+		total: publicPhotos.length,
 	};
 }
 

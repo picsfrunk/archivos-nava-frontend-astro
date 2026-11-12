@@ -10,18 +10,28 @@ import {
 interface Props {
 	photo: PhotoRecord;
 	showCategory?: boolean;
+	frameIndex?: number;
 }
 
-const { photo, showCategory = false } = Astro.props;
+const { photo, showCategory = false, frameIndex } = Astro.props;
 const category = photo.expand?.category;
 const label = photoLabel(photo);
+const year = displayYear(photo.year);
+const frameCode = frameIndex != null
+	? `${String(frameIndex).padStart(2, '0')}A`
+	: `${photo.id.slice(0, 3).toUpperCase()}`;
 const meta = [
 	showCategory ? category?.name : '',
-	displayYear(photo.year),
+	year,
 ].filter(Boolean);
 ---
 
 <a class="photo-card" href={`/photo/${photo.id}`} aria-label={label}>
+	<span class="contact-strip" aria-hidden="true">
+		<span class="frame-code">▲ FRM {frameCode}</span>
+		<span class="frame-year">{year || 'ARCHIVO'}</span>
+	</span>
+
 	<div class="photo-card-media">
 		<img
 			src={thumbnailUrl(photo.image)}
@@ -29,67 +39,140 @@ const meta = [
 			loading="lazy"
 			width="720"
 			height="540"
+			style={`view-transition-name: photo-${photo.id};`}
 		/>
+		<span class="inspect-pill" aria-hidden="true">Ver ficha ↗</span>
 	</div>
+
 	<span class="photo-card-body">
 		<span class="photo-title">{label}</span>
+		{photo.caption && photo.title && (
+			<span class="photo-caption-preview">{photo.caption}</span>
+		)}
 		{meta.length > 0 && <span class="photo-meta">{meta.join(' · ')}</span>}
 	</span>
 </a>
 
-<style>
+<style is:global>
 	.photo-card {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
-		padding: 10px;
-		border: 1px solid var(--border-subtle);
-		border-radius: 6px;
+		padding: 10px 10px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
 		background: var(--surface-card);
+		box-shadow: var(--shadow-sm);
+		text-decoration: none;
 		transition:
-			border-color 200ms ease,
-			box-shadow 200ms ease,
-			transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+			border-color 220ms ease,
+			background-color 220ms ease,
+			box-shadow 220ms ease,
+			transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
-	.photo-card:hover {
+	.photo-card:hover,
+	.photo-card:focus-visible {
 		border-color: var(--accent);
-		transform: translateY(-2px);
-		box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+		background: var(--surface-hover);
+		box-shadow: var(--shadow-lighttable);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.photo-card:hover {
+			transform: translateY(-3px);
+		}
+	}
+
+	.photo-card .contact-strip {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 0 2px 7px;
+		font-family: var(--font-mono);
+		font-size: 0.66rem;
+		font-weight: 500;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--film-stamp);
+		opacity: 0.85;
+		transition: opacity 180ms ease, color 180ms ease;
+	}
+
+	.photo-card:hover .contact-strip {
+		opacity: 1;
+		color: var(--accent);
+	}
+
+	.photo-card .frame-year {
+		color: var(--text-muted);
 	}
 
 	.photo-card-media {
+		position: relative;
 		overflow: hidden;
-		border-radius: 4px;
-		background: var(--surface);
+		border-radius: var(--radius-xs);
+		background: #080706;
+		border: 1px solid var(--border-subtle);
+		aspect-ratio: 4 / 3;
 	}
 
-	.photo-card img {
+	.photo-card-media img {
 		display: block;
 		width: 100%;
+		height: 100%;
 		aspect-ratio: 4 / 3;
 		object-fit: cover;
-		transition: transform 300ms ease;
+		transition: transform 380ms cubic-bezier(0.16, 1, 0.3, 1), filter 280ms ease;
 	}
 
-	.photo-card:hover img {
-		transform: scale(1.015);
+	@media (prefers-reduced-motion: no-preference) {
+		.photo-card:hover .photo-card-media img {
+			transform: scale(1.03);
+		}
+	}
+
+	.photo-card .inspect-pill {
+		position: absolute;
+		right: 8px;
+		bottom: 8px;
+		padding: 4px 8px;
+		border: 1px solid rgba(223, 169, 96, 0.45);
+		border-radius: var(--radius-xs);
+		background: rgba(13, 12, 10, 0.86);
+		color: #f3ede2;
+		font-family: var(--font-mono);
+		font-size: 0.66rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		opacity: 0;
+		transform: translateY(4px);
+		transition: opacity 180ms ease, transform 180ms ease;
+		pointer-events: none;
+	}
+
+	.photo-card:hover .inspect-pill,
+	.photo-card:focus-visible .inspect-pill {
+		opacity: 1;
+		transform: translateY(0);
 	}
 
 	.photo-card-body {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
-		padding: 10px 4px 4px;
+		gap: 5px;
+		padding: 11px 4px 2px;
 		min-width: 0;
 	}
 
 	.photo-title {
 		font-family: var(--font-serif);
-		font-size: 1.05rem;
+		font-size: 1.08rem;
 		font-weight: 500;
 		color: var(--text);
-		line-height: 1.35;
+		line-height: 1.3;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		display: -webkit-box;
@@ -97,10 +180,20 @@ const meta = [
 		-webkit-box-orient: vertical;
 	}
 
-	.photo-meta {
-		font-family: var(--font-sans);
+	.photo-caption-preview {
+		font-size: 0.8rem;
 		color: var(--text-secondary);
-		font-size: 0.76rem;
+		line-height: 1.4;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.photo-meta {
+		margin-top: 2px;
+		font-family: var(--font-mono);
+		color: var(--text-muted);
+		font-size: 0.7rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		overflow: hidden;
