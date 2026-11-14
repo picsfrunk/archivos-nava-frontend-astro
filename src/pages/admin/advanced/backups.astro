@@ -2,11 +2,21 @@
 import Layout from '../../../layouts/Layout.astro';
 import AdminShell from '../../../components/AdminShell.astro';
 import OwnerNav from '../../../components/OwnerNav.astro';
+import HelpBanner from '../../../components/HelpBanner.astro';
 ---
 
 <Layout title="Copias de seguridad">
 	<AdminShell title="Copias de seguridad" active="backups" eyebrow="Configuración avanzada">
 		<OwnerNav active="backups" />
+
+		<HelpBanner id="admin-backups-guide" title="Estrategia de resguardo del archivo" badge="RESPALDOS">
+			<p>Directivas sobre los respaldos de la base de datos y material archivístico:</p>
+			<ul>
+				<li><strong>Base de datos SQLite:</strong> Contiene metadatos, categorías, fechas y textos. Los snapshots se guardan en el servidor y opcionalmente en almacenamiento remoto Cloudflare R2.</li>
+				<li><strong>Fotografías originales:</strong> Los archivos de alta resolución residen protegidos en Cloudinary.</li>
+				<li><strong>Copias automáticas:</strong> El backend genera un respaldo diario rotativo de 7 días a las 03:00 UTC. Podés generar un respaldo manual en cualquier momento antes de cambios importantes.</li>
+			</ul>
+		</HelpBanner>
 
 		<p class="backups-intro">
 			Gestión de respaldos transaccionales de la base de datos SQLite (metadatos, categorías, configuración y cuentas).

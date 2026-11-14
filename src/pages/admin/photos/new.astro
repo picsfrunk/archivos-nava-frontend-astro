@@ -1,15 +1,30 @@
 ---
 import AdminShell from '../../../components/AdminShell.astro';
 import Layout from '../../../layouts/Layout.astro';
+import HelpBanner from '../../../components/HelpBanner.astro';
+import HelpTip from '../../../components/HelpTip.astro';
 ---
 
 <Layout title="Nueva carga | ARCHIVOS NAVA" description="Carga de fotografías.">
 	<AdminShell title="Crear fotografías" active="new">
+		<HelpBanner id="admin-new-photos-guide" title="Guía de digitalización y subida de archivos" badge="CONSEJO">
+			<p>Pautas de catalogación para conservar el archivo ordenado:</p>
+			<ul>
+				<li><strong>Subida simultánea:</strong> Podés arrastrar múltiples imágenes a la vez. Cada foto tendrá su tarjeta visual para titularla y revisarla.</li>
+				<li><strong>Categoría o Rollo:</strong> Es obligatoria. Si aún no existe el rollo adecuado, crealo al instante usando <code>+ Nueva categoría</code> sin perder lo cargado.</li>
+				<li><strong>Personas y contexto:</strong> Los nombres de quienes aparecen en la fotografía deben consignarse dentro del campo <strong>Descripción</strong>.</li>
+				<li><strong>Años históricos:</strong> Si no hay certeza del año exacto, dejá el campo vacío; no inventes fechas estimadas para no alterar la precisión documental.</li>
+			</ul>
+		</HelpBanner>
+
 		<form id="photo-form" novalidate>
 			<div class="form-grid">
 				<section class="dropzone-panel">
 					<div class="panel-header">
-						<h2>Fotografías a subir</h2>
+						<h2>
+							Fotografías a subir
+							<HelpTip id="tip-new-upload-zone" title="Imágenes" text="Soporta JPG, PNG, WebP o AVIF de hasta 10 MB por foto. Se preserva la resolución original para la mesa de luz." />
+						</h2>
 						<p class="panel-subtitle">
 							Cada fotografía tiene su propia vista previa amplia para identificarla y asignarle título fácilmente.
 						</p>
@@ -63,6 +78,7 @@ import Layout from '../../../layouts/Layout.astro';
 							<div class="field-label-row">
 								<label class="field-label" for="category">
 									Categoría <span class="required-mark" aria-hidden="true">*</span>
+									<HelpTip id="tip-field-cat" title="Rollo" text="Colección donde se alojarán las fotos subidas. Podés crear una nueva sobre la marcha si no existe." />
 								</label>
 								<button type="button" id="open-category-modal-btn" class="inline-create-btn">
 									+ Nueva categoría
@@ -106,19 +122,28 @@ import Layout from '../../../layouts/Layout.astro';
 						</div>
 
 						<label class="form-field">
-							<span class="field-label">Año</span>
+							<span class="field-label">
+								Año
+								<HelpTip id="tip-field-year" title="Año documental" text="Año de toma (4 dígitos). Dejalo vacío si no tenés certeza; no inventes fechas estimadas." />
+							</span>
 							<input id="year" name="year" type="number" inputmode="numeric" placeholder="Ej: 1982" />
 							<span class="field-help">Año aproximado o exacto. Dejá en blanco si no se conoce.</span>
 						</label>
 
 						<label class="form-field">
-							<span class="field-label">Epígrafe o pie de foto</span>
+							<span class="field-label">
+								Epígrafe o pie de foto
+								<HelpTip id="tip-field-caption" title="Epígrafe" text="Subtítulo corto visible junto a la fotografía en la mesa de luz." />
+							</span>
 							<input id="caption" name="caption" type="text" autocomplete="off" placeholder="Ej: Teatro San Martín, Buenos Aires" />
 							<span class="field-help">Ubicación, evento o subtítulo breve (opcional).</span>
 						</label>
 
 						<label class="form-field">
-							<span class="field-label">Descripción</span>
+							<span class="field-label">
+								Descripción
+								<HelpTip id="tip-field-description" title="Descripción" text="Aquí se anotan los nombres de las personas retratadas, el contexto histórico, la locación y notas técnicas." />
+							</span>
 							<textarea id="description" name="description" rows="5" placeholder="Detalles, personas que aparecen, contexto histórico o anécdotas..."></textarea>
 							<span class="field-help">Información histórica complementaria (opcional).</span>
 						</label>

@@ -18,6 +18,16 @@ const {
 <html lang="es" data-default-theme={isPublic ? settings.default_theme : undefined} data-theme={isPublic && settings.default_theme === 'light' ? 'light' : 'dark'}>
 <head>
 	<meta charset="UTF-8" />
+	{!isPublic && (
+		<script is:inline>
+			(() => {
+				try {
+					const mode = localStorage.getItem('nava_help_mode');
+					document.documentElement.dataset.helpMode = mode === 'disabled' ? 'disabled' : 'enabled';
+				} catch {}
+			})();
+		</script>
+	)}
     {isPublic && <script is:inline>
         (() => {
             const root = document.documentElement;
@@ -67,6 +77,12 @@ const {
 
 <body>
 <slot />
+{!isPublic && (
+	<script>
+		import { setupHelpLayer } from '../lib/help-layer';
+		setupHelpLayer();
+	</script>
+)}
 </body>
 </html>
 

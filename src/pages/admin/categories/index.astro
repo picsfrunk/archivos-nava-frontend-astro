@@ -1,16 +1,31 @@
 ---
 import AdminShell from '../../../components/AdminShell.astro';
 import Layout from '../../../layouts/Layout.astro';
+import HelpBanner from '../../../components/HelpBanner.astro';
+import HelpTip from '../../../components/HelpTip.astro';
 ---
 
 <Layout title="Categorías | ARCHIVOS NAVA" description="Gestión de categorías.">
 	<AdminShell title="Categorías" active="categories">
+		<HelpBanner id="admin-categories-guide" title="Guía de organización de rollos y colecciones" badge="ASISTENCIA">
+			<p>Pautas para gestionar la taxonomía de la galería:</p>
+			<ul>
+				<li><strong>Orden en catálogo:</strong> El sitio público lista las colecciones según el <code>Orden</code> numérico. Los botones <code>Subir</code> y <code>Bajar</code> incrementan o reducen de a 10 puntos para intercalar fácilmente.</li>
+				<li><strong>Identificador web (Slug):</strong> Es la ruta URL amigable (ej: <code>/gallery/recitales</code>). Se autogenera al escribir el nombre.</li>
+				<li><strong>Portada de colección:</strong> Si no se elige una foto puntual, el archivo toma automáticamente la primera imagen publicada del rollo.</li>
+				<li><strong>Pausar visibilidad:</strong> Si desactivás una categoría, queda oculta al público pero su material queda resguardado.</li>
+			</ul>
+		</HelpBanner>
+
 		<div class="category-layout">
 			<section class="category-list" aria-labelledby="category-list-title">
 				<div class="panel-heading">
 					<div>
 						<span class="panel-kicker">ÍNDICE DE COLECCIONES</span>
-						<h2 id="category-list-title">Listado de categorías</h2>
+						<h2 id="category-list-title">
+							Listado de categorías
+							<HelpTip id="tip-cat-list-help" title="Colecciones" text="Rollos que estructuran la navegación pública y agrupan el acervo fotográfico." />
+						</h2>
 					</div>
 					<button id="new-category-button" class="primary-button" type="button">+ Nueva categoría</button>
 				</div>
@@ -44,7 +59,10 @@ import Layout from '../../../layouts/Layout.astro';
 					<input id="name" name="name" type="text" autocomplete="off" placeholder="Ej. Recitales, Teatro, Cine…" required />
 				</label>
 				<label>
-					<span>Slug (URL)</span>
+					<span>
+						Slug (URL)
+						<HelpTip id="tip-cat-form-slug" title="Slug" text="Dirección web limpia para acceder a la colección. Se genera en minúsculas sin acentos ni espacios." />
+					</span>
 					<input id="slug" name="slug" type="text" autocomplete="off" placeholder="se-completa-solo" />
 				</label>
 				<label>
@@ -53,12 +71,18 @@ import Layout from '../../../layouts/Layout.astro';
 				</label>
 				<div class="form-row-split">
 					<label>
-						<span>Orden editorial</span>
+						<span>
+							Orden editorial
+							<HelpTip id="tip-cat-form-order" title="Orden" text="Posición relativa en los listados. Un número menor aparece más arriba." />
+						</span>
 						<input id="sort_order" name="sort_order" type="number" inputmode="numeric" step="1" placeholder="Automático" />
 					</label>
 					<label class="check-row">
 						<input id="active" name="active" type="checkbox" checked />
-						<span>Categoría activa</span>
+						<span>
+							Categoría activa
+							<HelpTip id="tip-cat-form-active" title="Estado" text="Si se desmarca, la categoría y sus fotos quedan ocultas al público pero guardadas." />
+						</span>
 					</label>
 				</div>
 
