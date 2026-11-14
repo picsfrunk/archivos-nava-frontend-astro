@@ -1,22 +1,22 @@
+# ARCHIVOS NAVA — Frontend Guidelines
+
 ## Development
 
-When starting the dev server, use background mode:
+```bash
+# Run local dev server
+npm run dev
 
+# Build for SSR production
+npm run build
+
+# Preview production build locally
+npm run preview
 ```
-astro dev --background
-```
 
-Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
+## Architecture & Conventions
 
-## Documentation
-
-Full documentation: https://docs.astro.build
-
-Consult these guides before working on related tasks:
-
-- [Adding pages, dynamic routes, or middleware](https://docs.astro.build/en/guides/routing/)
-- [Working with Astro components](https://docs.astro.build/en/basics/astro-components/)
-- [Using React, Vue, Svelte, or other framework components](https://docs.astro.build/en/guides/framework-components/)
-- [Adding or managing content](https://docs.astro.build/en/guides/content-collections/)
-- [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
-- [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
+- **Astro SSR Mode**: Uses `@astrojs/node` standalone adapter.
+- **Code Language**: All code, function names, identifiers, variables, schemas, types, and comments must be strictly in **English**. User-facing text must be in **Spanish**.
+- **Context & Rules**: Always follow `../ARCHIVOS-NAVA-CONTEXT.md`.
+- **Public vs Admin**: The assistance/help layer (`HelpTip`, `HelpBanner`, `HelpToggle`) belongs strictly in `/admin/*`. Never introduce help banners or tooltips into public gallery views.
+- **Verification**: Always run `npm run build` to ensure clean builds before submitting changes.
