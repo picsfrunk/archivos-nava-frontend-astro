@@ -1,0 +1,128 @@
+---
+interface Props {
+	id: string;
+	title?: string;
+	text: string;
+	label?: string;
+	class?: string;
+}
+
+const { id, title, text, label = 'Más información', class: className = '' } = Astro.props;
+---
+
+<span class:list={['help-tip-wrap', className]}>
+	<button
+		type="button"
+		class="help-tip-trigger"
+		interestfor={id}
+		popovertarget={id}
+		popovertargetaction="show"
+		aria-label={label}
+		aria-describedby={id}
+	>
+		<span class="help-mark" aria-hidden="true">?</span>
+	</button>
+	<div id={id} class="help-popover" popover="hint" role="tooltip">
+		<div class="help-popover-arrow" aria-hidden="true"></div>
+		{title && <span class="help-popover-title">{title}</span>}
+		<p class="help-popover-body">{text}</p>
+	</div>
+</span>
+
+<style>
+	.help-tip-wrap {
+		display: inline-flex;
+		align-items: center;
+		position: relative;
+		vertical-align: middle;
+		margin-inline: 4px;
+	}
+
+	.help-tip-trigger {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 17px;
+		height: 17px;
+		padding: 0;
+		border-radius: 50%;
+		border: 1px solid var(--border-strong, #dfa960);
+		background: var(--surface-subtle, #231f1a);
+		color: var(--accent, #dfa960);
+		font-family: var(--font-mono, monospace);
+		font-size: 11px;
+		font-weight: 700;
+		line-height: 1;
+		cursor: pointer;
+		transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+	}
+
+	.help-tip-trigger:hover,
+	.help-tip-trigger:focus-visible {
+		background: var(--accent, #dfa960);
+		color: var(--background, #0d0c0a);
+		border-color: var(--accent-strong, #ecc07e);
+		outline: 2px solid var(--accent-glow, rgba(223, 169, 96, 0.4));
+		outline-offset: 1px;
+		transform: scale(1.1);
+	}
+
+	.help-mark {
+		display: block;
+		transform: translateY(-0.5px);
+	}
+
+	/* Popover styling adhering to Modern Web Guidance */
+	.help-popover {
+		margin: 0;
+		padding: 10px 14px;
+		border: 1px solid var(--border-strong, #dfa960);
+		background: var(--surface-card, #1b1814);
+		color: var(--text, #f3ede2);
+		border-radius: var(--radius-sm, 6px);
+		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(223, 169, 96, 0.2);
+		max-width: 290px;
+		font-family: var(--font-sans, sans-serif);
+		font-size: 12px;
+		line-height: 1.45;
+		z-index: 10000;
+	}
+
+	/* Anchor positioning with fallback */
+	@supports (position-area: block-start) {
+		.help-popover {
+			position-area: block-start;
+			position-try-fallbacks: flip-block, flip-inline;
+			inset: auto;
+		}
+	}
+
+	@supports not (position-area: block-start) {
+		.help-popover {
+			position: fixed;
+			max-width: min(300px, calc(100dvw - 28px));
+		}
+	}
+
+	.help-popover-title {
+		display: block;
+		font-family: var(--font-mono, monospace);
+		font-size: 10px;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--accent, #dfa960);
+		margin-bottom: 4px;
+		font-weight: 600;
+	}
+
+	.help-popover-body {
+		margin: 0;
+		color: var(--text, #f3ede2);
+		font-size: 12px;
+	}
+
+	/* Hidden when help mode is disabled */
+	:global(html[data-help-mode="disabled"]) .help-tip-wrap {
+		display: none !important;
+	}
+</style>

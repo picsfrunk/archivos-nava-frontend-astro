@@ -1,0 +1,161 @@
+---
+interface Props {
+	id: string;
+	title: string;
+	badge?: string;
+	dismissible?: boolean;
+	class?: string;
+}
+
+const { id, title, badge = 'ASISTENCIA', dismissible = true, class: className = '' } = Astro.props;
+---
+
+<aside class:list={['help-banner', className]} data-help-banner-id={id} role="region" aria-label={`Ayuda: ${title}`}>
+	<div class="banner-inner">
+		<div class="banner-header">
+			<div class="banner-tag-group">
+				<span class="banner-badge">{badge}</span>
+				<h3 class="banner-title">{title}</h3>
+			</div>
+			{dismissible && (
+				<button
+					type="button"
+					class="banner-dismiss-button"
+					data-dismiss-banner={id}
+					title="Ocultar este cartel de ayuda"
+					aria-label={`Ocultar ayuda de ${title}`}
+				>
+					Entendido ×
+				</button>
+			)}
+		</div>
+		<div class="banner-content">
+			<slot />
+		</div>
+	</div>
+</aside>
+
+<style>
+	.help-banner {
+		margin-bottom: 22px;
+		border: 1px dashed var(--border-strong, #dfa960);
+		background: linear-gradient(180deg, rgba(223, 169, 96, 0.08) 0%, rgba(223, 169, 96, 0.02) 100%), var(--surface-card, #1b1814);
+		border-radius: var(--radius-sm, 6px);
+		padding: 16px 20px;
+		color: var(--text, #f3ede2);
+		position: relative;
+		animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.banner-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 10px;
+		flex-wrap: wrap;
+	}
+
+	.banner-tag-group {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+
+	.banner-badge {
+		display: inline-block;
+		font-family: var(--font-mono, monospace);
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--background, #0d0c0a);
+		background: var(--accent, #dfa960);
+		padding: 2px 7px;
+		border-radius: var(--radius-xs, 3px);
+	}
+
+	.banner-title {
+		margin: 0;
+		font-family: var(--font-sans, sans-serif);
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--text, #f3ede2);
+	}
+
+	.banner-dismiss-button {
+		font-family: var(--font-mono, monospace);
+		font-size: 11px;
+		color: var(--text-muted, #7e7567);
+		background: transparent;
+		border: 1px solid var(--border, #383127);
+		border-radius: var(--radius-xs, 3px);
+		padding: 3px 9px;
+		cursor: pointer;
+		transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+	}
+
+	.banner-dismiss-button:hover,
+	.banner-dismiss-button:focus-visible {
+		color: var(--accent, #dfa960);
+		border-color: var(--accent, #dfa960);
+		background: var(--surface-subtle, #231f1a);
+		outline: none;
+	}
+
+	.banner-content {
+		font-size: 13px;
+		line-height: 1.55;
+		color: var(--text-secondary, #b0a695);
+	}
+
+	.banner-content :global(p) {
+		margin: 0 0 8px 0;
+	}
+
+	.banner-content :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.banner-content :global(ul) {
+		margin: 6px 0 0 0;
+		padding-left: 20px;
+	}
+
+	.banner-content :global(li) {
+		margin-bottom: 4px;
+	}
+
+	.banner-content :global(strong) {
+		color: var(--text, #f3ede2);
+		font-weight: 600;
+	}
+
+	.banner-content :global(code) {
+		font-family: var(--font-mono, monospace);
+		font-size: 11px;
+		background: var(--surface-subtle, #231f1a);
+		padding: 1px 5px;
+		border-radius: 3px;
+		border: 1px solid var(--border-subtle, rgba(235, 214, 180, 0.13));
+		color: var(--accent, #dfa960);
+	}
+
+	/* Hidden when dismissed via JavaScript or when help mode is disabled */
+	.help-banner[hidden],
+	:global(html[data-help-mode="disabled"]) .help-banner {
+		display: none !important;
+	}
+</style>

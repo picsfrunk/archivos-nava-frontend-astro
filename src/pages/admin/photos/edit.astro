@@ -1,6 +1,7 @@
 ---
 import AdminShell from '../../../components/AdminShell.astro';
 import Layout from '../../../layouts/Layout.astro';
+import HelpTip from '../../../components/HelpTip.astro';
 ---
 
 <Layout title="Editar fotografía | ARCHIVOS NAVA" description="Edición de fotografía.">
@@ -25,16 +26,25 @@ import Layout from '../../../layouts/Layout.astro';
 				</div>
 
 				<label>
-					<span>Título</span>
+					<span>
+						Título
+						<HelpTip id="tip-edit-title" title="Título" text="Título editorial visible en la galería y en la mesa de luz." />
+					</span>
 					<input id="title" name="title" type="text" autocomplete="off" />
 				</label>
 				<div class="split-row">
 					<label>
-						<span>Año</span>
+						<span>
+							Año
+							<HelpTip id="tip-edit-year" title="Año" text="Año histórico (4 dígitos). Dejalo vacío si no tenés certeza." />
+						</span>
 						<input id="year" name="year" type="number" inputmode="numeric" />
 					</label>
 					<label id="status-label">
-						<span>Estado</span>
+						<span>
+							Estado
+							<HelpTip id="tip-edit-status" title="Estado" text="Publicada se muestra al instante en la web; Borrador queda en edición interna." />
+						</span>
 						<select id="status" name="status">
 							<option value="draft">Borrador</option>
 							<option value="published">Publicada</option>
@@ -42,17 +52,26 @@ import Layout from '../../../layouts/Layout.astro';
 					</label>
 				</div>
 				<label>
-					<span>Categoría / Rollo</span>
+					<span>
+						Categoría / Rollo
+						<HelpTip id="tip-edit-cat" title="Rollo" text="Cambiar de categoría moverá esta fotografía al nuevo rollo de inmediato." />
+					</span>
 					<select id="category" name="category" required>
 						<option value="">Cargando categorías...</option>
 					</select>
 				</label>
 				<label>
-					<span>Epígrafe</span>
+					<span>
+						Epígrafe
+						<HelpTip id="tip-edit-caption" title="Epígrafe" text="Subtítulo corto para contextualizar la toma." />
+					</span>
 					<input id="caption" name="caption" type="text" autocomplete="off" />
 				</label>
 				<label>
-					<span>Descripción</span>
+					<span>
+						Descripción
+						<HelpTip id="tip-edit-desc" title="Descripción" text="Consigná aquí los nombres de personas presentes, locación exacta y detalles de época." />
+					</span>
 					<textarea id="description" name="description" rows="5"></textarea>
 				</label>
 

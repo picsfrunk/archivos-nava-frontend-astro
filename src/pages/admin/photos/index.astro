@@ -1,22 +1,43 @@
 ---
 import AdminShell from '../../../components/AdminShell.astro';
 import Layout from '../../../layouts/Layout.astro';
+import HelpBanner from '../../../components/HelpBanner.astro';
+import HelpTip from '../../../components/HelpTip.astro';
 ---
 
 <Layout title="Fotografías | ARCHIVOS NAVA" description="Gestión de fotografías.">
 	<AdminShell title="Fotografías" active="photos">
+		<HelpBanner id="admin-photos-overview" title="Guía de gestión y catálogo de fotografías" badge="ASISTENCIA">
+			<p>Desde este panel administrás todo el acervo fotográfico digitalizado:</p>
+			<ul>
+				<li><strong>Búsqueda combinada:</strong> Podés filtrar al mismo tiempo por texto (título, descripción o personas), por <strong>Año</strong> exacto y por <strong>Rollo / Categoría</strong>.</li>
+				<li><strong>Estados del archivo:</strong> <code>Publicadas</code> están visibles en la web; <code>Borradores</code> quedan reservadas para revisión; <code>Papelera</code> contiene fotos archivadas para descartar.</li>
+				<li><strong>Operaciones en lote:</strong> Marcá la casilla <em>"Seleccionar todas las visibles"</em> para cambiar de categoría o de estado varias tomas simultáneamente.</li>
+				<li><strong>Portada de inicio:</strong> El botón <em>"Portada"</em> en cada foto la convierte inmediatamente en la cabecera editorial de la página principal.</li>
+			</ul>
+		</HelpBanner>
+
 		<search class="toolbar" aria-label="Filtros">
 			<div class="toolbar-top">
 				<label class="search-field">
-					<span>Buscar en el archivo</span>
+					<span>
+						Buscar en el archivo
+						<HelpTip id="tip-search-photo" title="Buscador" text="Busca en tiempo real coincidencias en títulos, pies de foto y descripciones completas." />
+					</span>
 					<input id="search-filter" type="search" maxlength="200" placeholder="Título, descripción o pie de foto…" />
 				</label>
 				<label class="year-field">
-					<span>Año</span>
+					<span>
+						Año
+						<HelpTip id="tip-year-photo" title="Año" text="Ingresá un año de 4 dígitos (ej. 1985). Dejá en blanco si la fecha exacta es incierta." />
+					</span>
 					<input id="year-filter" type="text" inputmode="numeric" maxlength="4" placeholder="Ej. 1985" aria-describedby="year-error" />
 				</label>
 				<label class="category-filter">
-					<span>Categoría / Rollo</span>
+					<span>
+						Categoría / Rollo
+						<HelpTip id="tip-cat-photo" title="Rollo" text="Filtra únicamente las fotografías catalogadas dentro de esta colección." />
+					</span>
 					<select id="category-filter">
 						<option value="">Todas</option>
 					</select>
@@ -48,7 +69,11 @@ import Layout from '../../../layouts/Layout.astro';
 			</div>
 		</search>
 
-		<label class="select-page"><input id="select-page" type="checkbox" /> Seleccionar todas las visibles</label>
+		<label class="select-page">
+			<input id="select-page" type="checkbox" />
+			<span>Seleccionar todas las visibles</span>
+			<HelpTip id="tip-bulk-selection" title="Selección masiva" text="Marca todas las fotos listadas en esta página para aplicar acciones por lote desde la barra que aparecerá debajo." />
+		</label>
 		<div class="action-area">
 			<div id="bulk-bar" class="bulk-bar" hidden aria-label="Acciones sobre las fotografías seleccionadas">
 				<strong id="selection-count" role="status"></strong>

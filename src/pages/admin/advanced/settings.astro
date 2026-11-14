@@ -2,10 +2,20 @@
 import Layout from '../../../layouts/Layout.astro';
 import AdminShell from '../../../components/AdminShell.astro';
 import OwnerNav from '../../../components/OwnerNav.astro';
+import HelpBanner from '../../../components/HelpBanner.astro';
+import HelpTip from '../../../components/HelpTip.astro';
 ---
 <Layout title="Configuración del sitio">
     <AdminShell title="Configuración del sitio" active="settings" eyebrow="Configuración avanzada">
         <OwnerNav active="settings" />
+        <HelpBanner id="admin-settings-tips" title="Configuración de marca e identidad pública" badge="PROPIETARIO">
+            <p>Los cambios en esta pantalla afectan de forma inmediata la apariencia del sitio público:</p>
+            <ul>
+                <li><strong>Nombre y descripción:</strong> Se reflejan en la cabecera, pie de página y metadatos para buscadores (SEO).</li>
+                <li><strong>Tema predeterminado:</strong> Podés definir si la galería abre por defecto en <em>Cuarto oscuro</em> o <em>Papel algodón</em> para visitantes nuevos.</li>
+                <li><strong>Logotipo:</strong> Podés subir un imagotipo transparente o con fondo. Se preservan sus proporciones originales.</li>
+            </ul>
+        </HelpBanner>
         <p class="settings-intro">Estos cambios modifican la identidad pública del archivo.</p>
         <p id="settings-status" role="status" aria-live="polite">Comprobando acceso…</p>
         <button id="retry-settings" class="secondary-button" type="button" hidden>Volver a cargar</button>
